@@ -6,12 +6,16 @@ on:
       - "ai/**"
       - "scripts/sync_ai_assets.py"
       - "tests/**"
+      - "src/**"
+      - "pyproject.toml"
       - ".github/workflows/ai-assets.yml"
   pull_request:
     paths:
       - "ai/**"
       - "scripts/sync_ai_assets.py"
       - "tests/**"
+      - "src/**"
+      - "pyproject.toml"
       - ".github/workflows/ai-assets.yml"
   workflow_dispatch:
 
@@ -23,7 +27,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Testes do sincronizador
-        run: python -m unittest discover -s tests -v
+      - name: Instalar projeto e dependências de teste
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest
+      - name: Executar testes
+        run: python -m pytest -q
       - name: Verificar espelhamento
         run: python scripts/sync_ai_assets.py --check
