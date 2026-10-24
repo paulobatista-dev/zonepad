@@ -1,0 +1,29 @@
+name: ai-assets
+
+on:
+  push:
+    paths:
+      - "ai/**"
+      - "scripts/sync_ai_assets.py"
+      - "tests/**"
+      - ".github/workflows/ai-assets.yml"
+  pull_request:
+    paths:
+      - "ai/**"
+      - "scripts/sync_ai_assets.py"
+      - "tests/**"
+      - ".github/workflows/ai-assets.yml"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Testes do sincronizador
+        run: python -m unittest discover -s tests -v
+      - name: Verificar espelhamento
+        run: python scripts/sync_ai_assets.py --check

@@ -1,0 +1,6 @@
+{
+  "name": "flow-design-feature",
+  "display_name": "Design de feature",
+  "description": "Especifica uma feature de calibração antes de implementar: requisitos, impacto no hardware, contratos Python, riscos e plano de testes. Use quando a feature ainda não tem spec aprovada.",
+  "argument_hint": "[feature] [dispositivo/plataforma]"
+}

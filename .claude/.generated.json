@@ -1,0 +1,30 @@
+{
+  "generator": "scripts/sync_ai_assets.py",
+  "source": "ai/",
+  "files": [
+    "agents/controller-hardware.md",
+    "agents/prompt-engineer.md",
+    "agents/python-engineer.md",
+    "skills/calibration-domain/SKILL.md",
+    "skills/calibration-domain/references/profile-schema.md",
+    "skills/calibration-metrics/SKILL.md",
+    "skills/calibration-metrics/references/metrics.md",
+    "skills/clean-architecture/SKILL.md",
+    "skills/clean-code/SKILL.md",
+    "skills/controller-protocols/SKILL.md",
+    "skills/controller-protocols/references/device-matrix.md",
+    "skills/evidence-based/SKILL.md",
+    "skills/flow-bootstrap-app/SKILL.md",
+    "skills/flow-design-feature/SKILL.md",
+    "skills/flow-implement-feature/SKILL.md",
+    "skills/flow-review-calibration/SKILL.md",
+    "skills/github-interaction/SKILL.md",
+    "skills/github-interaction/references/gh-recipes.md",
+    "skills/positive-ontology/SKILL.md",
+    "skills/prompt-design/SKILL.md",
+    "skills/prompt-evaluation/SKILL.md",
+    "skills/prompt-evaluation/references/test-matrix.md",
+    "skills/python-app-architecture/SKILL.md",
+    "skills/python-quality/SKILL.md"
+  ]
+}

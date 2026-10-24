@@ -1,0 +1,9 @@
+{
+  "generator": "scripts/sync_ai_assets.py",
+  "source": "ai/",
+  "files": [
+    "agents/controller-hardware.toml",
+    "agents/prompt-engineer.toml",
+    "agents/python-engineer.toml"
+  ]
+}

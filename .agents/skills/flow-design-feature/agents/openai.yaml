@@ -1,0 +1,7 @@
+# Gerado por scripts/sync_ai_assets.py a partir de ai/flows/flow-design-feature/.
+# Não edite este arquivo.
+interface:
+  display_name: "Design de feature"
+  short_description: "Especifica uma feature de calibração antes de implementar: requisitos, impacto no hardware, contratos Python, riscos..."
+policy:
+  allow_implicit_invocation: false

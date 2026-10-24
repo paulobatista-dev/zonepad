@@ -1,0 +1,30 @@
+{
+  "name": "controller-hardware",
+  "description": "Especialista em hardware e protocolos de controles: HID/SDL3, sticks, triggers, deadzones, ruído, circularidade e quirks por plataforma. Use para decisões de medição, calibração e compatibilidade de dispositivos.",
+  "mode": "subagent",
+  "tools": [
+    "read",
+    "write",
+    "edit",
+    "glob",
+    "grep",
+    "shell",
+    "webfetch",
+    "websearch",
+    "skill"
+  ],
+  "skills": [
+    "controller-protocols",
+    "calibration-metrics",
+    "calibration-domain",
+    "evidence-based",
+    "positive-ontology"
+  ],
+  "color": "orange",
+  "models": {
+    "opencode": null,
+    "claude": null,
+    "codex": null
+  },
+  "reasoning_effort": "high"
+}

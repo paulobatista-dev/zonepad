@@ -1,0 +1,32 @@
+{
+  "name": "python-engineer",
+  "description": "Especialista em aplicações Python: arquitetura, implementação, testes, tipagem, packaging e performance. Use para projetar, implementar ou revisar o código do ZonaPad.",
+  "mode": "subagent",
+  "tools": [
+    "read",
+    "write",
+    "edit",
+    "glob",
+    "grep",
+    "shell",
+    "webfetch",
+    "websearch",
+    "skill"
+  ],
+  "skills": [
+    "python-app-architecture",
+    "python-quality",
+    "calibration-domain",
+    "evidence-based",
+    "clean-code",
+    "clean-architecture",
+    "github-interaction"
+  ],
+  "color": "blue",
+  "models": {
+    "opencode": null,
+    "claude": null,
+    "codex": null
+  },
+  "reasoning_effort": "high"
+}
