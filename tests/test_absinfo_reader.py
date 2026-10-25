@@ -9,7 +9,11 @@ from pathlib import Path
 import pytest
 
 from zonepad.domain.discovery import AbsInfo
-from zonepad.domain.errors import DeviceAccessDeniedError, DeviceNotFoundError
+from zonepad.domain.errors import (
+    DeviceAccessDeniedError,
+    DeviceNotFoundError,
+    UnsupportedPlatformError,
+)
 from zonepad.infrastructure.absinfo import ABSINFO_STRUCT, EvdevAbsInfoReader, eviocgabs
 
 FD = 42
@@ -25,6 +29,7 @@ class FakeEvdevNode:
     opened: list[tuple[str, int]] = field(default_factory=list)
     requests: list[int] = field(default_factory=list)
     closed: list[int] = field(default_factory=list)
+    machine: str = "x86_64"
 
     def opener(self, path: str, flags: int) -> int:
         self.opened.append((path, flags))
@@ -46,7 +51,11 @@ class FakeEvdevNode:
 
     def reader(self) -> EvdevAbsInfoReader:
         return EvdevAbsInfoReader(
-            Path("/dev/input"), opener=self.opener, ioctl=self.ioctl, closer=self.closer
+            Path("/dev/input"),
+            opener=self.opener,
+            ioctl=self.ioctl,
+            closer=self.closer,
+            machine=lambda: self.machine,
         )
 
 
@@ -134,5 +143,22 @@ def test_rejects_anything_but_an_event_node(node_name: str) -> None:
 
     with pytest.raises(DeviceNotFoundError):
         node.reader().read_absinfo(node_name, [0])
+
+    assert node.opened == []
+
+
+@pytest.mark.parametrize("machine", ["x86_64", "i686", "aarch64", "armv7l", "riscv64"])
+def test_asm_generic_machines_are_accepted(machine: str) -> None:
+    node = FakeEvdevNode({0: (0, 0, 255, 0, 0, 0)}, machine=machine)
+
+    assert set(node.reader().read_absinfo("event3", [0])) == {0}
+
+
+@pytest.mark.parametrize("machine", ["ppc64le", "mips64", "sparc64", ""])
+def test_other_ioctl_layouts_are_refused_before_opening(machine: str) -> None:
+    node = FakeEvdevNode({0: (0, 0, 255, 0, 0, 0)}, machine=machine)
+
+    with pytest.raises(UnsupportedPlatformError):
+        node.reader().read_absinfo("event3", [0])
 
     assert node.opened == []

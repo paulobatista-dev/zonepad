@@ -140,6 +140,9 @@ def test_identity_sidecar_records_provenance_and_raw_facts(tmp_path: Path) -> No
     assert draft["catalog_entry_id"] == "xpad-xboxone"
     assert draft["catalog_source"] == "builtin"
     assert draft["range_source"] == "evdev_absinfo"
+    assert draft["range_sources"] == dict.fromkeys(
+        ("lx", "ly", "rx", "ry", "lt", "rt"), "evdev_absinfo"
+    )
     assert draft["provisional"] is True
     assert draft["provisional_fields"][0] == "axes.lx.center"
     assert draft["absinfo"]["0"] == {
@@ -274,6 +277,10 @@ def test_mapping_without_identity_is_invalid(tmp_path: Path) -> None:
         lambda d: d["hardware"].update(bustype="3"),
         lambda d: d["draft"].update(range_source="sysfs"),
         lambda d: d.update(mapping_sha256="XYZ"),
+        lambda d: d["draft"]["range_sources"].pop("rt"),
+        lambda d: d["draft"]["range_sources"].update(lz="catalog"),
+        lambda d: d["draft"]["range_sources"].update(lt="sysfs"),
+        lambda d: d["draft"]["range_sources"].update(lt="catalog"),
     ],
 )
 def test_strict_identity_validation_marks_entry_invalid(tmp_path: Path, mutation) -> None:
@@ -412,3 +419,34 @@ def test_connection_override_on_unknown_bus_is_found_by_resolution(tmp_path: Pat
     assert resolved.identity.stable_id.startswith("bus0019-1209-0002-")
     assert (sidecar["connection"], sidecar["connection_source"]) == ("usb", "override")
     assert ref.source is MappingSource.SAVED
+
+
+def test_mixed_range_sources_mark_the_draft_as_catalog(tmp_path: Path) -> None:
+    root = tmp_path / "sys"
+    build_sysfs(root, [xbox_one_s_usb()])
+    snapshot = discover_devices(SysfsInputScanner(root), discovery_policies())
+    resolved = resolve_device_reference("event3", snapshot)
+    partial = {code: info for code, info in XBOX_ONE_ABSINFO.items() if code != 5}
+    outcome = draft_mapping(
+        resolved,
+        absinfo_reader=FakeAbsInfoReader({"event3": partial}),
+        catalog=LayeredDeviceCatalog(load_builtin_catalog()),
+        rules=draft_rules(),
+    )
+    assert isinstance(outcome, DraftOutcome)
+    record = build_mapping_record(
+        resolved,
+        outcome,
+        dumps_device_mapping(outcome.draft),
+        connection_override=None,
+        created_at=CREATED_AT,
+        app_version="0.1.0",
+    )
+    store = JsonDeviceMappingStore(tmp_path / "devices")
+    ref = store.save(record, overwrite=False)
+
+    sidecar = json.loads((Path(ref.mapping_path).parent / IDENTITY_FILE).read_text("utf-8"))
+    assert sidecar["draft"]["range_source"] == "catalog"
+    assert sidecar["draft"]["range_sources"]["rt"] == "catalog"
+    assert sidecar["draft"]["range_sources"]["lt"] == "evdev_absinfo"
+    assert ref.range_source == "catalog"

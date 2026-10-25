@@ -26,6 +26,7 @@ from zonepad.application.discovery import (
 )
 from zonepad.application.mapping_draft import (
     ABSINFO_PERMISSION_DENIED,
+    ABSINFO_UNSUPPORTED_PLATFORM,
     DraftOutcome,
     build_mapping_record,
     draft_mapping,
@@ -38,6 +39,7 @@ from zonepad.domain.errors import (
     DeviceAccessDeniedError,
     DeviceNotFoundError,
     MappingConflictError,
+    UnsupportedPlatformError,
 )
 from zonepad.domain.identity import Connection
 from zonepad.domain.mapping_draft import InsufficientCapabilities, RangeSource
@@ -214,3 +216,39 @@ def test_mapping_record_carries_override_and_provenance(tmp_path: Path) -> None:
     assert record.key.connection is Connection.USB
     assert record.connection_source == "detected"
     assert record.range_source == "evdev_absinfo"
+
+
+def test_degenerate_absinfo_falls_back_to_catalog_with_a_warning(tmp_path: Path) -> None:
+    resolved = _resolve(tmp_path, [xbox_one_s_usb()], "event3")
+    partial = {code: info for code, info in XBOX_ONE_ABSINFO.items() if code != 2}
+
+    outcome = _draft(resolved, FakeAbsInfoReader({"event3": partial}))
+
+    assert isinstance(outcome, DraftOutcome)
+    assert outcome.draft.range_sources["lt"] is RangeSource.CATALOG
+    assert "absinfo_unavailable:2" in outcome.draft.provenance.warnings
+    assert outcome.draft.range_source is RangeSource.CATALOG
+
+
+class _UnsupportedReader:
+    def read_absinfo(self, event_node: str, codes):
+        raise UnsupportedPlatformError("ppc64le")
+
+
+def test_unsupported_platform_uses_catalog_with_a_warning(tmp_path: Path) -> None:
+    resolved = _resolve(tmp_path, [xbox_one_s_usb()], "event3")
+
+    outcome = _draft(resolved, _UnsupportedReader())  # type: ignore[arg-type]
+
+    assert isinstance(outcome, DraftOutcome)
+    assert ABSINFO_UNSUPPORTED_PLATFORM in outcome.draft.provenance.warnings
+    assert not any(w.startswith("absinfo_unavailable") for w in outcome.draft.provenance.warnings)
+
+
+def test_unsupported_platform_on_a_generic_device_is_ranges_unavailable(tmp_path: Path) -> None:
+    resolved = _resolve(tmp_path, [generic_usb_full()], "event52")
+
+    result = _draft(resolved, _UnsupportedReader())  # type: ignore[arg-type]
+
+    assert isinstance(result, InsufficientCapabilities)
+    assert result.reason == "ranges_unavailable"

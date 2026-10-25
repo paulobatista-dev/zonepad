@@ -129,6 +129,18 @@ def _device(
             ("not_a_gamepad:touchscreen_or_tablet",),
         ),
         (
+            {"axes": frozenset({0, 1}), "buttons": PAD_BUTTONS | {0x14B}},
+            DeviceClass.UNKNOWN,
+            None,
+            ("not_a_gamepad:touchscreen_or_tablet",),
+        ),
+        (
+            {"axes": frozenset({0, 1}), "buttons": PAD_BUTTONS | {0x140}},
+            DeviceClass.UNKNOWN,
+            None,
+            ("not_a_gamepad:touchscreen_or_tablet",),
+        ),
+        (
             {"axes": frozenset(), "ev": frozenset({0, 1}), "buttons": frozenset({30, 57})},
             DeviceClass.KEYBOARD,
             None,

@@ -163,6 +163,7 @@ def _mutated(change) -> str:
         (lambda d: d["families"].append(d["families"][0]), "unique"),
         (lambda d: d["families"][0].update(id="Bad Id"), "id must match"),
         (lambda d: d["families"][0]["center_override"].update(lt=3), "non-stick"),
+        (lambda d: d["families"][0].update(required_abs=[0, 1, 2, 3, 4]), "outside required_abs"),
     ],
 )
 def test_loader_rejects_schema_violations(change, message: str) -> None:
@@ -180,3 +181,9 @@ def test_loader_rejects_duplicate_fields_and_bad_json() -> None:
 def test_missing_user_catalog_is_invalid_catalog(tmp_path: Path) -> None:
     with pytest.raises(InvalidCatalogError, match="catalog not found"):
         load_catalog_file(tmp_path / "absent.json")
+
+
+def test_xbox360_entry_documents_the_original_xbox_quirk() -> None:
+    entry = next(e for e in load_builtin_catalog().entries if e.entry_id == "xpad-xbox360")
+
+    assert "also_matches_original_xbox_by_interface_protocol" in entry.quirks

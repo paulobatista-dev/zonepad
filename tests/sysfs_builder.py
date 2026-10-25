@@ -6,6 +6,9 @@
 
 Bitmaps follow ``input_print_bitmap`` and are computed for 64-bit words unless
 stated otherwise (values from the ``controller-hardware`` fixture table).
+The ``hid-generic`` fixtures reuse the xpad-like key bitmaps, which skip 0x132 and
+0x135; real HID generic pads number buttons sequentially (``hid-input.c:807-812``).
+This does not change the classification.
 Synthetic data only: MACs use the locally administered bit (``02:...``) and
 serials start with ``SYNTH``.
 """
