@@ -42,6 +42,7 @@ zonepad list
 zonepad profiles --directory ~/.config/zonepad/profiles
 zonepad replay captura.jsonl
 zonepad run --device event3 --profile <uuid> --mapping controle.json --duration 10
+zonepad measure captura.jsonl --manifest captura.manifest.json --mapping controle.json
 ```
 
 O backend Linux lê `/dev/input/event*` (evdev), aplica o perfil em tempo real e publica eventos em um controle virtual por `/dev/uinput`. O acesso ao dispositivo `uinput` depende das permissões da distribuição. Nenhum acesso a hardware é executado nos testes.
@@ -88,6 +89,66 @@ O mapping v1 é estrito: campos desconhecidos, códigos repetidos, valores não 
 O backend acumula mudanças evdev até `SYN_REPORT`; portanto cada frame publicado representa um pacote completo. Botões físicos que não aparecem no mapping são ignorados. Para acessar `/dev/input/event*` e `/dev/uinput`, configure as permissões da distribuição via grupo apropriado ou regra udev reversível; não execute o aplicativo como root. Falta de permissão em `/dev/uinput` retorna código 3 com essa orientação.
 
 Os frames evdev recebem timestamp do relógio monotônico do host no momento de `SYN_REPORT`; isso mantém a ordem temporal mesmo quando o relógio civil é ajustado. A origem é uma aproximação de leitura, não o timestamp do kernel.
+
+### Medir métricas e gerar um perfil
+
+`zonepad measure` calcula métricas de sticks e triggers a partir de uma captura raw segmentada por um manifesto, emite um relatório (JSON e Markdown) e, com `--save-profile`, grava um perfil `schema_version=1`. O comando não lê `/dev/input` nem `/dev/uinput`; ele só abre os arquivos informados. A spec completa (fórmulas, janelas, mínimos e catálogo de achados) está em [`docs/specs/metrics-v1.md`](docs/specs/metrics-v1.md) e a decisão de contrato em [`docs/adr/0004-metricas-relatorio-separado-e-perfil-v1.md`](docs/adr/0004-metricas-relatorio-separado-e-perfil-v1.md).
+
+```bash
+zonepad measure captura.jsonl \
+  --manifest captura.manifest.json \
+  --mapping controle.json \
+  --report metricas.json --report-md metricas.md \
+  --save-profile ~/.config/zonepad/profiles
+```
+
+**Captura.** JSONL com um frame raw por linha: `device_id`, `timestamp_ns` (inteiro monotônico), `axes`, `triggers` (inteiros) e `buttons` (opcional). O leitor é estrito: rejeita `NaN`/`Infinity`, timestamps float ou decrescentes, `device_id` misto e campos desconhecidos, citando arquivo e linha. A gravação guiada fica para o wizard (prompt 03); por enquanto, a captura vem de qualquer ferramenta que escreva esse formato.
+
+**Protocolo (~85 s).** Aquecimento de 2 s sem tocar (fora de segmento); repouso de 5 s (`rest`, com `warmup_ns` de 1 s); por stick, 3 voltas horárias e 3 anti-horárias na borda do gate (`circle`); por trigger, 5 ciclos de pressionar até o fundo e soltar (`trigger_sweep`). O repouso efetivo precisa de pelo menos 3 s e 150 frames; cada volta, de pelo menos 100 frames.
+
+**Manifesto** (`manifest_version=1`, obrigatório; os segmentos são intervalos `[start_ns, end_ns)`, ordenados e sem sobreposição):
+
+```json
+{
+  "manifest_version": 1,
+  "device": {"device_id": "event3", "name": "Xbox Wireless Controller", "vid": "0x045e", "pid": "0x0b13"},
+  "capture_file": "captura.jsonl",
+  "nominal_rate_hz": 125,
+  "connection": "bluetooth",
+  "segments": [
+    {"kind": "rest", "start_ns": 2000000000, "end_ns": 7000000000, "warmup_ns": 1000000000},
+    {"kind": "circle", "stick": "left", "direction": "cw", "start_ns": 8000000000, "end_ns": 14000000000},
+    {"kind": "circle", "stick": "left", "direction": "ccw", "start_ns": 14500000000, "end_ns": 20500000000},
+    {"kind": "trigger_sweep", "trigger": "left", "start_ns": 22000000000, "end_ns": 47000000000}
+  ]
+}
+```
+
+Campos opcionais: `capture_sha256`, `nominal_rate_hz`, `connection` (`usb`, `bluetooth`, `wireless_dongle`, `unknown`) e, em `device`, `guid` e `serial`. Campos desconhecidos são rejeitados, e `device.device_id` e `capture_file` precisam coincidir com a captura. `serial` e `guid` entram apenas no perfil local, nunca no relatório.
+
+**Mapping.** `--mapping` é obrigatório e usa o mesmo JSON v1 do `zonepad run`: as métricas são calculadas sobre valores normalizados por ele, o mesmo espaço em que o perfil é aplicado. O `measure` não substitui o mapping do `run`.
+
+**Relatório.** O JSON (`report_kind="calibration-metrics"`, `metrics_schema_version=1`) traz dispositivo, captura (hash SHA-256, frames, taxa efetiva e p5/p95), segmentos, métricas por stick e trigger (valor típico e pior caso), diagnóstico raw, achados de qualidade, o resumo do perfil e os thresholds efetivos. É determinístico para a mesma entrada, serializado com `allow_nan=False` e arredondado a 6 casas. O Markdown é derivado do JSON e não recalcula nada. Sem `--report` e sem `--report-md`, o JSON vai para stdout.
+
+**Achados e `--strict`.** Cada achado tem `code`, `severity` (`info`, `warning`, `error`), `message`, `metric`, `value`, `threshold` e `strict_blocking`; `quality.status` é `fail` com algum `error`, `warn` com algum `warning` e `pass` caso contrário. Com `--strict`, qualquer `error` ou `warning` bloqueante encerra com código 4 e nenhum perfil é gravado.
+
+**Thresholds.** Os defaults são *default a validar*, não valores universais: `drift_max` 0,02; `noise_rms_max` 0,005; `circularity_min` 0,90; `trigger_r2_min` 0,98; `hysteresis_max` 0,03; `rate_tolerance` 0,10; deadzone `max(1,5 × P99 do ruído, piso 0,02)` para sticks e piso 0,01 para triggers. Sobrescreva qualquer valor com `--thresholds` (campos omitidos usam o default; o relatório registra o conjunto efetivo):
+
+```json
+{"thresholds_version": 1, "drift_max": 0.03, "deadzone": {"factor": 2.0}, "protocol": {"rest_min_frames": 100}}
+```
+
+**Códigos de saída.** `0` relatório gerado (avisos não bloqueiam sem `--strict`); `1` falha inesperada; `2` captura, manifesto, mapping, thresholds ou argumentos inválidos; `4` qualidade insuficiente com `--strict`, ou `--save-profile` sem perfil derivável (o relatório continua sendo escrito).
+
+**Limitações.**
+
+- Linearidade e histerese do trigger usam o tempo normalizado como proxy do curso, pois a captura não tem sensor de posição; os achados correspondentes são `info`.
+- O repouso de poucos segundos mede deriva de curto prazo, não deriva térmica; grave um segundo `rest` ao final para ver o deslocamento do centro.
+- Deadzone de firmware não é medida; a deadzone sugerida pode somar-se a ela.
+- Controles sem trigger analógico (por exemplo, ZL/ZR digitais do Switch Pro) não são suportados no v1: o perfil exige os dois triggers.
+- Botões são ignorados, e a comparação entre sessões fica para o wizard.
+- Os thresholds e fatores ainda não foram validados com capturas reais de vários controles.
+- A captura inteira é carregada em memória (cerca de 10 mil frames por sessão de 85 s a 125 Hz).
 
 Para a GUI, instale o extra opcional: `python -m pip install -e '.[gui]'` (ou `'.[dev,gui]'`) e execute `zonepad-gui`.
 
@@ -285,5 +346,5 @@ Copyright (c) 2026 ZonaPad contributors.
 ## Próximos passos
 
 1. Medir e versionar mappings por família de controle, USB/Bluetooth e firmware.
-2. Adicionar métricas guiadas de ruído, circularidade, linearidade e histerese.
+2. Adicionar o wizard guiado de calibração sobre `zonepad measure` (gravação da captura e do manifesto).
 3. Implementar descoberta hot-plug e parsers específicos após capturas reais.
