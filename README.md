@@ -79,7 +79,7 @@ zonepad mapping draft --device usb-045e-02ea-se73b07be4c --sysfs-root tests/fixt
 
 **ID estável.** O formato é `<bus>-<vid>-<pid>-<qualificador>[.<n>]`, por exemplo `usb-045e-02ea-se73b07be4c`. O qualificador vem, nesta ordem, do `uniq` (`u`), do serial USB (`s`) ou do `phys` USB (`p`), sempre como 10 hex de SHA-256; sem nenhum deles, vira a ocorrência `n1`, `n2`. O `eventN` nunca entra no ID. O hash é **pseudônimo, não anônimo**: um MAC pode ser recuperado por força bruta, então não compartilhe o ID como dado anônimo. `--device` aceita o ID estável, o `eventN` ou a base `<bus>-<vid>-<pid>` quando ela identifica um único gamepad.
 
-**Mapping draft.** `zonepad mapping draft` monta um mapping `schema_version=1` a partir das capabilities, dos ranges do driver e de um catálogo por família (Xbox via xpad, DualShock 4, DualSense; Switch Pro reconhecido). Ele abre só o nó resolvido, em modo leitura, para o ioctl `EVIOCGABS`, sem ler eventos; `--no-probe` usa só o catálogo. O resultado fica em:
+**Mapping draft.** `zonepad mapping draft` monta um mapping `schema_version=1` a partir das capabilities, dos ranges do driver e de um catálogo por família (Xbox 360/One e 8BitDo X-input via xpad, DualShock 4 e DualSense; Switch Pro reconhecido). Ele abre só o nó resolvido, em modo leitura, para o ioctl `EVIOCGABS`, sem ler eventos; `--no-probe` usa só o catálogo. O resultado fica em:
 
 ```text
 ~/.config/zonepad/devices/          # --devices-dir; diretórios com modo 0700
