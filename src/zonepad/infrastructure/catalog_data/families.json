@@ -1,0 +1,721 @@
+{
+  "catalog_version": 1,
+  "families": [
+    {
+      "id": "xpad-xbox360",
+      "display_name": "Xbox 360 com fio e 8BitDo X-input (xpad)",
+      "match": {
+        "driver": "xpad",
+        "bustype": [
+          "0003"
+        ],
+        "vid_pid": [
+          "045e:028e",
+          "045e:028f",
+          "2dc8:3106",
+          "2dc8:3109",
+          "2dc8:310a",
+          "2dc8:310b",
+          "2dc8:6001"
+        ],
+        "usb_interface_protocol": {
+          "not_in": [
+            "81",
+            "d0"
+          ]
+        }
+      },
+      "required_abs": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "channels": {
+        "lx": {
+          "code": 0
+        },
+        "ly": {
+          "code": 1
+        },
+        "rx": {
+          "code": 3
+        },
+        "ry": {
+          "code": 4
+        },
+        "lt": {
+          "code": 2
+        },
+        "rt": {
+          "code": 5
+        }
+      },
+      "known_ranges": {
+        "0": {
+          "minimum": -32768,
+          "maximum": 32767,
+          "fuzz": 16,
+          "flat": 128
+        },
+        "1": {
+          "minimum": -32768,
+          "maximum": 32767,
+          "fuzz": 16,
+          "flat": 128
+        },
+        "2": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        },
+        "3": {
+          "minimum": -32768,
+          "maximum": 32767,
+          "fuzz": 16,
+          "flat": 128
+        },
+        "4": {
+          "minimum": -32768,
+          "maximum": 32767,
+          "fuzz": 16,
+          "flat": 128
+        },
+        "5": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        }
+      },
+      "center_override": {},
+      "buttons": {
+        "304": "button_south",
+        "305": "button_east",
+        "307": "button_north",
+        "308": "button_west"
+      },
+      "layout": "xbox",
+      "unsupported_reason": null,
+      "quirks": [
+        "uniq_empty",
+        "name_from_driver_table",
+        "y_inverted_by_driver",
+        "also_matches_original_xbox_by_interface_protocol"
+      ],
+      "evidence": [
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/input/joystick/xpad.c:123-124",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/input/joystick/xpad.c:385-389",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/input/joystick/xpad.c:452-467",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/input/joystick/xpad.c:1910-1921",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/input/joystick/xpad.c:2103-2112",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/input/joystick/xpad.c:2104-2113",
+          "commit": "330517c63aa9"
+        }
+      ],
+      "verified_on_hardware": false
+    },
+    {
+      "id": "xpad-xbox360w",
+      "display_name": "Receptor wireless Xbox 360 (xpad)",
+      "match": {
+        "driver": "xpad",
+        "bustype": [
+          "0003"
+        ],
+        "vid_pid": [
+          "045e:02a1"
+        ],
+        "usb_interface_protocol": {
+          "in": [
+            "81"
+          ]
+        }
+      },
+      "required_abs": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "channels": {
+        "lx": {
+          "code": 0
+        },
+        "ly": {
+          "code": 1
+        },
+        "rx": {
+          "code": 3
+        },
+        "ry": {
+          "code": 4
+        },
+        "lt": {
+          "code": 2
+        },
+        "rt": {
+          "code": 5
+        }
+      },
+      "known_ranges": {
+        "0": {
+          "minimum": -32768,
+          "maximum": 32767,
+          "fuzz": 16,
+          "flat": 128
+        },
+        "1": {
+          "minimum": -32768,
+          "maximum": 32767,
+          "fuzz": 16,
+          "flat": 128
+        },
+        "2": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        },
+        "3": {
+          "minimum": -32768,
+          "maximum": 32767,
+          "fuzz": 16,
+          "flat": 128
+        },
+        "4": {
+          "minimum": -32768,
+          "maximum": 32767,
+          "fuzz": 16,
+          "flat": 128
+        },
+        "5": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        }
+      },
+      "center_override": {},
+      "buttons": {
+        "304": "button_south",
+        "305": "button_east",
+        "307": "button_north",
+        "308": "button_west"
+      },
+      "layout": "xbox",
+      "unsupported_reason": null,
+      "quirks": [
+        "uniq_empty",
+        "shared_phys_between_pads",
+        "usb_product_differs_from_input",
+        "y_inverted_by_driver"
+      ],
+      "evidence": [
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/input/joystick/xpad.c:125-131",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/input/joystick/xpad.c:1959-1962",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/input/joystick/xpad.c:2076-2077",
+          "commit": "330517c63aa9"
+        }
+      ],
+      "verified_on_hardware": false
+    },
+    {
+      "id": "xpad-xboxone",
+      "display_name": "Xbox One/Series e 8BitDo X-input tipo One (xpad)",
+      "match": {
+        "driver": "xpad",
+        "bustype": [
+          "0003"
+        ],
+        "vid_pid": [
+          "045e:02d1",
+          "045e:02dd",
+          "045e:02e3",
+          "045e:02ea",
+          "045e:0b00",
+          "045e:0b0a",
+          "045e:0b12",
+          "2dc8:2000",
+          "2dc8:200f",
+          "2dc8:201e"
+        ],
+        "usb_interface_protocol": {
+          "in": [
+            "d0"
+          ]
+        }
+      },
+      "required_abs": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "channels": {
+        "lx": {
+          "code": 0
+        },
+        "ly": {
+          "code": 1
+        },
+        "rx": {
+          "code": 3
+        },
+        "ry": {
+          "code": 4
+        },
+        "lt": {
+          "code": 2
+        },
+        "rt": {
+          "code": 5
+        }
+      },
+      "known_ranges": {
+        "0": {
+          "minimum": -32768,
+          "maximum": 32767,
+          "fuzz": 16,
+          "flat": 128
+        },
+        "1": {
+          "minimum": -32768,
+          "maximum": 32767,
+          "fuzz": 16,
+          "flat": 128
+        },
+        "2": {
+          "minimum": 0,
+          "maximum": 1023,
+          "fuzz": 0,
+          "flat": 0
+        },
+        "3": {
+          "minimum": -32768,
+          "maximum": 32767,
+          "fuzz": 16,
+          "flat": 128
+        },
+        "4": {
+          "minimum": -32768,
+          "maximum": 32767,
+          "fuzz": 16,
+          "flat": 128
+        },
+        "5": {
+          "minimum": 0,
+          "maximum": 1023,
+          "fuzz": 0,
+          "flat": 0
+        }
+      },
+      "center_override": {},
+      "buttons": {
+        "304": "button_south",
+        "305": "button_east",
+        "307": "button_north",
+        "308": "button_west"
+      },
+      "layout": "xbox",
+      "unsupported_reason": null,
+      "quirks": [
+        "uniq_empty",
+        "key_record_share_button",
+        "y_inverted_by_driver"
+      ],
+      "evidence": [
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/input/joystick/xpad.c:127-134",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/input/joystick/xpad.c:382-384",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/input/joystick/xpad.c:1918-1919",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/input/joystick/xpad.c:1988-1989",
+          "commit": "330517c63aa9"
+        }
+      ],
+      "verified_on_hardware": false
+    },
+    {
+      "id": "playstation-ds4",
+      "display_name": "DualShock 4 (hid-playstation)",
+      "match": {
+        "driver": "playstation",
+        "bustype": [
+          "0003",
+          "0005"
+        ],
+        "vid_pid": [
+          "054c:05c4",
+          "054c:09cc",
+          "054c:0ba0"
+        ],
+        "usb_interface_protocol": null
+      },
+      "required_abs": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "channels": {
+        "lx": {
+          "code": 0
+        },
+        "ly": {
+          "code": 1
+        },
+        "rx": {
+          "code": 3
+        },
+        "ry": {
+          "code": 4
+        },
+        "lt": {
+          "code": 2
+        },
+        "rt": {
+          "code": 5
+        }
+      },
+      "known_ranges": {
+        "0": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        },
+        "1": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        },
+        "2": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        },
+        "3": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        },
+        "4": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        },
+        "5": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        }
+      },
+      "center_override": {},
+      "buttons": {
+        "304": "button_south",
+        "305": "button_east",
+        "307": "button_north",
+        "308": "button_west"
+      },
+      "layout": "playstation",
+      "unsupported_reason": null,
+      "quirks": [
+        "uniq_is_mac",
+        "phys_empty",
+        "auxiliary_touchpad_and_motion_nodes",
+        "firmware_version_attribute"
+      ],
+      "evidence": [
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/hid/hid-ids.h:1365-1367",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/hid/hid-playstation.c:766-775",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/hid/hid-playstation.c:2463-2474",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/hid/hid-playstation.c:2939-2947",
+          "commit": "330517c63aa9"
+        }
+      ],
+      "verified_on_hardware": false
+    },
+    {
+      "id": "playstation-dualsense",
+      "display_name": "DualSense e DualSense Edge (hid-playstation)",
+      "match": {
+        "driver": "playstation",
+        "bustype": [
+          "0003",
+          "0005"
+        ],
+        "vid_pid": [
+          "054c:0ce6",
+          "054c:0df2"
+        ],
+        "usb_interface_protocol": null
+      },
+      "required_abs": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "channels": {
+        "lx": {
+          "code": 0
+        },
+        "ly": {
+          "code": 1
+        },
+        "rx": {
+          "code": 3
+        },
+        "ry": {
+          "code": 4
+        },
+        "lt": {
+          "code": 2
+        },
+        "rt": {
+          "code": 5
+        }
+      },
+      "known_ranges": {
+        "0": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        },
+        "1": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        },
+        "2": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        },
+        "3": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        },
+        "4": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        },
+        "5": {
+          "minimum": 0,
+          "maximum": 255,
+          "fuzz": 0,
+          "flat": 0
+        }
+      },
+      "center_override": {},
+      "buttons": {
+        "304": "button_south",
+        "305": "button_east",
+        "307": "button_north",
+        "308": "button_west"
+      },
+      "layout": "playstation",
+      "unsupported_reason": null,
+      "quirks": [
+        "uniq_is_mac",
+        "phys_empty",
+        "auxiliary_touchpad_motion_and_headset_nodes",
+        "firmware_version_attribute"
+      ],
+      "evidence": [
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/hid/hid-ids.h:1368-1369",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/hid/hid-playstation.c:1474-1488",
+          "commit": "330517c63aa9"
+        }
+      ],
+      "verified_on_hardware": false
+    },
+    {
+      "id": "nintendo-procon",
+      "display_name": "Switch Pro Controller (hid-nintendo)",
+      "match": {
+        "driver": "nintendo",
+        "bustype": [
+          "0003",
+          "0005"
+        ],
+        "vid_pid": [
+          "057e:2009"
+        ],
+        "usb_interface_protocol": null
+      },
+      "required_abs": [
+        0,
+        1,
+        3,
+        4
+      ],
+      "channels": {
+        "lx": {
+          "code": 0
+        },
+        "ly": {
+          "code": 1
+        },
+        "rx": {
+          "code": 3
+        },
+        "ry": {
+          "code": 4
+        }
+      },
+      "known_ranges": {
+        "0": {
+          "minimum": -32767,
+          "maximum": 32767,
+          "fuzz": 250,
+          "flat": 500
+        },
+        "1": {
+          "minimum": -32767,
+          "maximum": 32767,
+          "fuzz": 250,
+          "flat": 500
+        },
+        "3": {
+          "minimum": -32767,
+          "maximum": 32767,
+          "fuzz": 250,
+          "flat": 500
+        },
+        "4": {
+          "minimum": -32767,
+          "maximum": 32767,
+          "fuzz": 250,
+          "flat": 500
+        }
+      },
+      "center_override": {},
+      "buttons": {
+        "304": "button_south",
+        "305": "button_east",
+        "307": "button_north",
+        "308": "button_west"
+      },
+      "layout": "nintendo",
+      "unsupported_reason": "digital_triggers_only",
+      "quirks": [
+        "uniq_is_mac_uppercase",
+        "calibrated_by_driver",
+        "y_inverted_by_driver",
+        "auxiliary_imu_node"
+      ],
+      "evidence": [
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/hid/hid-ids.h:1125",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/hid/hid-nintendo.c:144-146",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/hid/hid-nintendo.c:427-435",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/hid/hid-nintendo.c:2050-2075",
+          "commit": "330517c63aa9"
+        }
+      ],
+      "verified_on_hardware": false
+    }
+  ]
+}

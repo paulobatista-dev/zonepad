@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from sysfs_builder import build_sysfs, xbox_one_s_usb
 
 from zonepad.application.runtime import RuntimeProcessor, build_runtime
 from zonepad.domain.device import DeviceInfo
@@ -216,7 +217,7 @@ def test_evdev_mapping_emits_a_single_frame_on_syn_report() -> None:
 
 
 def test_run_parser_validates_positive_values_and_requires_mapping_at_execution(
-    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     parser = cli.build_parser()
     parsed = parser.parse_args(["run", "--device", "event3", "--profile", "id"])
@@ -224,8 +225,12 @@ def test_run_parser_validates_positive_values_and_requires_mapping_at_execution(
     assert parsed.duration is None
     with pytest.raises(SystemExit):
         parser.parse_args(["run", "--device", "event3", "--profile", "id", "--timeout", "0"])
-    assert cli.main(["run", "--device", "event3", "--profile", "id"]) == 2
-    assert "--mapping" in capsys.readouterr().out
+    build_sysfs(tmp_path / "sys", [xbox_one_s_usb()])
+    argv = ["run", "--device", "event3", "--profile", "id", "--sysfs-root", str(tmp_path / "sys")]
+    assert cli.main([*argv, "--devices-dir", str(tmp_path / "devices")]) == 2
+    out = capsys.readouterr().out
+    assert "zonepad mapping draft --device usb-045e-02ea-s" in out
+    assert "--mapping" in out
 
 
 def test_run_mapping_error_returns_exit_2(

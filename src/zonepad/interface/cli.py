@@ -30,6 +30,21 @@ from zonepad.infrastructure.mapping import load_device_mapping
 from zonepad.infrastructure.replay import load_capture
 from zonepad.infrastructure.uinput import LinuxUinputPublisher
 from zonepad.interface.calibration_cli import run_calibrate
+from zonepad.interface.device_cli import (
+    DEVICE_REFERENCE_HELP,
+    EVENT_NODE,
+    CliDependencies,
+    CliExit,
+    add_device_commands,
+    add_discovery_paths,
+    check_catalog_ranges,
+    discover,
+    resolve_reference,
+    resolve_session_mapping,
+    run_devices,
+    run_mapping,
+    verify_after_open,
+)
 
 
 def _positive_float(value: str) -> float:
@@ -54,6 +69,19 @@ sem --report e sem --report-md, o relatório JSON vai para stdout.
 """
 
 
+_RUN_EPILOG = """\
+códigos de saída:
+  0  execução concluída, interrompida (Ctrl+C) ou controle desconectado
+  2  argumentos, mapping (ausente, inválido ou de outra conexão), perfil ou
+     referência ambígua
+  3  dispositivo não encontrado, nó reatribuído, ou sem permissão em /dev/input
+     ou /dev/uinput
+  1  falha inesperada
+
+--device eventN com --mapping segue o caminho legado, sem sysfs nem mappings salvos.
+"""
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="zonepad", description="Calibração de controles no Linux")
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -62,11 +90,23 @@ def build_parser() -> argparse.ArgumentParser:
     replay.add_argument("capture", type=Path)
     profiles = subcommands.add_parser("profiles", help="lista perfis JSON")
     profiles.add_argument("--directory", type=Path, default=Path("~/.config/zonepad/profiles"))
-    run = subcommands.add_parser("run", help="aplica um perfil a um controle virtual uinput")
-    run.add_argument("--device", required=True, help="nome do nó evdev, por exemplo event3")
+    run = subcommands.add_parser(
+        "run",
+        help="aplica um perfil a um controle virtual uinput",
+        description=(
+            "Lê o controle, aplica o perfil e publica o resultado num controle virtual uinput. "
+            "Com ID estável, resolve o mapping salvo em --devices-dir."
+        ),
+        epilog=_RUN_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    run.add_argument("--device", required=True, help=DEVICE_REFERENCE_HELP)
     run.add_argument("--profile", required=True, help="UUID do perfil salvo")
     run.add_argument("--profiles-dir", type=Path, default=Path("~/.config/zonepad/profiles"))
-    run.add_argument("--mapping", type=Path, help="JSON v1 com códigos e ranges medidos")
+    run.add_argument(
+        "--mapping", type=Path, help="mapping JSON v1; vence o mapping salvo da identidade"
+    )
+    add_discovery_paths(run)
     run.add_argument("--uinput", type=Path, help="nó uinput; padrão: /dev/uinput")
     run.add_argument(
         "--timeout", type=_positive_float, default=0.05, help="timeout de leitura em segundos"
@@ -109,23 +149,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="conduz a calibração interativa de um controle",
         description=(
             "Grava uma captura segmentada, mede sua qualidade e oferece a criação de perfil v1. "
-            "Requer TTY; não descobre mapping automaticamente."
+            "Requer TTY. Com ID estável (ou sem --device), usa o mapping salvo do dispositivo; "
+            "--mapping explícito vence o salvo."
         ),
         epilog=(
             "códigos de saída:\n"
             "  0  perfil salvo ou resultado aceito sem salvar\n"
             "  1  falha inesperada\n"
-            "  2  argumentos, TTY, mapping, thresholds ou captura inválidos\n"
-            "  3  dispositivo indisponível, desconectado ou sem permissão\n"
+            "  2  argumentos, TTY, mapping (ausente ou inválido), referência ambígua,\n"
+            "     thresholds ou captura inválidos\n"
+            "  3  dispositivo não descoberto, indisponível, desconectado ou sem permissão\n"
             "  4  qualidade bloqueante ou perfil não derivável\n"
             "  130 cancelamento (Ctrl+C, EOF ou opção cancelar)\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    calibrate.add_argument("--device", help="nó evdev; omitido: seleção manual")
     calibrate.add_argument(
-        "--mapping", type=Path, required=True, help="mapping JSON v1 com lx, ly, rx, ry, lt e rt"
+        "--device", help=f"{DEVICE_REFERENCE_HELP}; omitido: escolha entre os gamepads"
     )
+    calibrate.add_argument(
+        "--mapping",
+        type=Path,
+        help="mapping JSON v1 com lx, ly, rx, ry, lt e rt; vence o mapping salvo",
+    )
+    add_discovery_paths(calibrate)
     calibrate.add_argument(
         "--capture-dir",
         type=Path,
@@ -170,12 +217,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=2,
         help="retries máximos por alvo; limite global fixo de 6 (padrão: 2)",
     )
+    add_device_commands(subcommands)
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, dependencies: CliDependencies | None = None) -> int:
     logging.basicConfig(level=logging.INFO)
     args = build_parser().parse_args(argv)
+    deps = dependencies or CliDependencies()
     if args.command == "list":
         for device in LinuxEvdevBackend().list_devices():
             print(
@@ -202,11 +251,15 @@ def main(argv: list[str] | None = None) -> int:
             print(profile_id)
         return 0
     if args.command == "run":
-        return _run(args)
+        return _run(args, deps)
     if args.command == "measure":
         return _measure(args)
     if args.command == "calibrate":
-        return run_calibrate(args)
+        return run_calibrate(args, dependencies=deps)
+    if args.command == "devices":
+        return run_devices(args, deps)
+    if args.command == "mapping":
+        return run_mapping(args, deps)
     return 2
 
 
@@ -275,21 +328,37 @@ def _measure(args: argparse.Namespace) -> int:
     return 0
 
 
-def _run(args: argparse.Namespace) -> int:
-    if args.mapping is None:
-        print(
-            "erro: --mapping é necessário para fornecer ranges medidos de eixos e triggers",
-            flush=True,
-        )
-        return 2
+def _run(args: argparse.Namespace, deps: CliDependencies) -> int:
+    """Composition root of ``zonepad run``: device -> mapping -> profile -> open (RF8)."""
+    legacy = EVENT_NODE.fullmatch(args.device) is not None and args.mapping is not None
     try:
-        mapping = load_device_mapping(args.mapping)
+        explicit = load_device_mapping(args.mapping) if args.mapping is not None else None
+        resolved = None
+        scanner = None
+        if legacy:
+            node = args.device
+            mapping = explicit
+            logging.getLogger("zonepad.cli").info(
+                "device resolved stable_id=- node=%s reference=legacy",
+                node,
+                extra={"node": node, "reference": "legacy"},
+            )
+        else:
+            scanner = deps.scanner(args.sysfs_root)
+            resolved = resolve_reference(args.device, discover(scanner, args.sysfs_root))
+            mapping, _, mapping_ref = resolve_session_mapping(
+                resolved, args.mapping, deps.store(args.devices_dir)
+            )
+            check_catalog_ranges(resolved, mapping_ref, mapping, deps.absinfo_reader())
+            node = resolved.event_node
+        if mapping is None:  # pragma: no cover - legacy implies --mapping
+            raise CliExit(2, "erro: mapping ausente")
         store = JsonProfileStore(args.profiles_dir)
         # Validar o perfil antes de registrar um controle virtual.
         store.load(args.profile)
-        backend = LinuxEvdevBackend(mapping=mapping)
+        backend = deps.backend(mapping) if deps.backend else LinuxEvdevBackend(mapping=mapping)
         try:
-            publisher = LinuxUinputPublisher(args.uinput)
+            publisher = (deps.publisher or LinuxUinputPublisher)(args.uinput)
         except PermissionError:
             print(
                 "erro: sem permissão para /dev/uinput; configure uma regra udev "
@@ -297,16 +366,26 @@ def _run(args: argparse.Namespace) -> int:
                 flush=True,
             )
             return 3
-        runtime = build_runtime(backend, store, publisher, args.device, args.profile, args.timeout)
+        runtime = build_runtime(backend, store, publisher, node, args.profile, args.timeout)
+        if resolved is not None and scanner is not None:
+            try:
+                verify_after_open(scanner, resolved)
+            except CliExit:
+                runtime.close()
+                raise
         logging.info(
             "runtime started",
             extra={
-                "device_id": args.device,
+                "device_id": node,
+                "stable_id": resolved.identity.stable_id if resolved else None,
                 "profile_id": args.profile,
                 "duration_s": args.duration,
             },
         )
         runtime.run(args.timeout, args.duration)
+    except CliExit as exc:
+        print(exc.message, flush=True)
+        return exc.code
     except KeyboardInterrupt:
         logging.info("runtime interrupted")
         return 0
@@ -320,19 +399,20 @@ def _run(args: argparse.Namespace) -> int:
             flush=True,
         )
         return 3
+    except DeviceNotFoundError as exc:
+        print(
+            f"erro: dispositivo {args.device} não encontrado ({exc}); rode `zonepad devices`",
+            flush=True,
+        )
+        return 3
+    except InvalidMappingError as exc:
+        print(f"erro: {exc}", flush=True)
+        return 2
+    except (InvalidProfileError, FileNotFoundError, UnsupportedPlatformError) as exc:
+        print(f"erro: {exc}", flush=True)
+        return 2
     except (OSError, RuntimeError) as exc:
         print(f"erro: não foi possível executar o runtime: {exc}", flush=True)
-        return 2
-    except (
-        InvalidProfileError,
-        InvalidMappingError,
-        DeviceNotFoundError,
-        FileNotFoundError,
-    ) as exc:
-        print(f"erro: {exc}", flush=True)
-        return 2
-    except UnsupportedPlatformError as exc:
-        print(f"erro: {exc}", flush=True)
         return 2
     return 0
 

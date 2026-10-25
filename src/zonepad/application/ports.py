@@ -2,10 +2,19 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 
+from zonepad.domain.catalog import CatalogMatch
 from zonepad.domain.device import DeviceInfo
+from zonepad.domain.discovery import (
+    AbsInfo,
+    DiscoverySnapshot,
+    HotplugChange,
+    ObservedInputDevice,
+)
+from zonepad.domain.identity import MappingKey, StableIdentity
 from zonepad.domain.input import CalibratedFrame, RawFrame
+from zonepad.domain.mapping_draft import DraftProvenance
 from zonepad.domain.normalization import AxisRange, TriggerRange
 from zonepad.domain.profile import CalibrationProfile
 from zonepad.domain.protocol import Segment
@@ -103,3 +112,83 @@ class NormalizationConfig(Protocol):
 
     @property
     def triggers(self) -> Mapping[str, TriggerRange]: ...
+
+
+class InputDeviceScanner(Protocol):
+    """Read facts of every ``eventN`` without opening device nodes.
+
+    Raises ``DeviceNotFoundError`` when the sysfs root is missing or unreadable;
+    a problem in one node becomes a ``ReadIssue`` and never aborts the scan.
+    """
+
+    def scan(self) -> Sequence[ObservedInputDevice]: ...
+
+
+class AbsInfoReader(Protocol):
+    """Read ``input_absinfo`` for ``codes`` of one node (``EVIOCGABS``, no event read).
+
+    Raises ``DeviceAccessDeniedError`` or ``DeviceNotFoundError``.  Codes whose
+    absinfo is degenerate or unsupported are absent from the result.
+    """
+
+    def read_absinfo(self, event_node: str, codes: Sequence[int]) -> Mapping[int, AbsInfo]: ...
+
+
+class DeviceCatalog(Protocol):
+    def match(self, observed: ObservedInputDevice) -> CatalogMatch: ...
+
+
+StoredMappingStatus = Literal["saved", "provisional", "edited", "invalid"]
+
+
+@dataclass(frozen=True, slots=True)
+class StoredMappingRef:
+    """A saved mapping as found on disk; hashes are recomputed on every read.
+
+    ``key.connection`` is the recorded connection.  ``detail`` explains an
+    ``invalid`` status.  ``recorded_*`` fields feed the change warnings of D6.
+    """
+
+    key: MappingKey
+    mapping_path: str
+    mapping_sha256: str | None
+    recorded_sha256: str | None
+    provisional: bool | None
+    range_source: str | None
+    status: StoredMappingStatus
+    detail: str | None = None
+    fragile: bool | None = None
+    recorded_device_version: int | None = None
+    recorded_firmware: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class MappingRecord:
+    key: MappingKey
+    identity: StableIdentity
+    connection_source: Literal["detected", "override"]
+    mapping_text: str
+    provenance: DraftProvenance
+    range_source: str
+    range_sources: Mapping[str, str]
+    absinfo: Mapping[int, AbsInfo]
+    created_at: str
+    app_version: str
+
+
+class DeviceMappingStore(Protocol):
+    def find(self, key: MappingKey) -> StoredMappingRef | None:
+        """Look up by ``key.stable_id``; connection checks belong to the caller."""
+        ...
+
+    def save(self, record: MappingRecord, *, overwrite: bool) -> StoredMappingRef:
+        """Raise ``MappingConflictError`` when a mapping exists and ``overwrite`` is false."""
+        ...
+
+    def entries(self) -> Sequence[StoredMappingRef]: ...
+
+
+class HotplugWatcher(Protocol):
+    def snapshot(self) -> DiscoverySnapshot: ...
+
+    def poll(self) -> HotplugChange: ...

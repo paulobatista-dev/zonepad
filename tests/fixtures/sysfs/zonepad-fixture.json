@@ -1,0 +1,5 @@
+{
+  "bitmap_word_bits": 64,
+  "description": "Minimal synthetic sysfs (mount point /sys): Xbox One S USB (serial SYNTH0001) and an AT keyboard. Synthetic data only.",
+  "schema_version": 1
+}
