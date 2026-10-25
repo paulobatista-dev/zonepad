@@ -1,0 +1,7 @@
+# Gerado por scripts/sync_ai_assets.py a partir de ai/flows/flow-bootstrap-app/.
+# Não edite este arquivo.
+interface:
+  display_name: "Bootstrap do app"
+  short_description: "Cria a fundação do ZonaPad: escopo do MVP, arquitetura, contratos de dispositivo, esqueleto Python e plano de testes..."
+policy:
+  allow_implicit_invocation: false

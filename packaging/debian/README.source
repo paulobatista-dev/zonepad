@@ -1,0 +1,2 @@
+The Debian files are scaffolding. Build dependencies and udev permissions should
+be reviewed for the target distribution before producing a release package.

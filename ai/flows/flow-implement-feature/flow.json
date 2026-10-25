@@ -1,0 +1,6 @@
+{
+  "name": "flow-implement-feature",
+  "display_name": "Implementação de feature",
+  "description": "Implementa uma feature já especificada, com handoffs para hardware e Python, testes, revisão e sincronização dos assets de IA. Use após a spec estar aprovada.",
+  "argument_hint": "[spec/caminho] [escopo adicional]"
+}

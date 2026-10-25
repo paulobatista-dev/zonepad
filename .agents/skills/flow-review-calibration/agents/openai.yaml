@@ -1,0 +1,7 @@
+# Gerado por scripts/sync_ai_assets.py a partir de ai/flows/flow-review-calibration/.
+# Não edite este arquivo.
+interface:
+  display_name: "Revisão de calibração"
+  short_description: "Revisão multiagente de código e medições de calibração: hardware valida semântica, Python valida implementação/testes..."
+policy:
+  allow_implicit_invocation: false

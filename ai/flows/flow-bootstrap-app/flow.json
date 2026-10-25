@@ -1,0 +1,6 @@
+{
+  "name": "flow-bootstrap-app",
+  "display_name": "Bootstrap do app",
+  "description": "Cria a fundação do ZonaPad: escopo do MVP, arquitetura, contratos de dispositivo, esqueleto Python e plano de testes. Use ao iniciar o projeto ou ao reconstruir a base.",
+  "argument_hint": "[objetivo] [plataformas] [dispositivos]"
+}

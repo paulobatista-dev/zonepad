@@ -1,0 +1,6 @@
+{
+  "name": "flow-review-calibration",
+  "display_name": "Revisão de calibração",
+  "description": "Revisão multiagente de código e medições de calibração: hardware valida semântica, Python valida implementação/testes e prompt valida instruções. Use em PRs, diffs ou antes de release.",
+  "argument_hint": "[diff/PR/branch] [foco]"
+}

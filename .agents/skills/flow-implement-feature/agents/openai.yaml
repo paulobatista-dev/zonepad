@@ -1,0 +1,7 @@
+# Gerado por scripts/sync_ai_assets.py a partir de ai/flows/flow-implement-feature/.
+# Não edite este arquivo.
+interface:
+  display_name: "Implementação de feature"
+  short_description: "Implementa uma feature já especificada, com handoffs para hardware e Python, testes, revisão e sincronização dos asse..."
+policy:
+  allow_implicit_invocation: false

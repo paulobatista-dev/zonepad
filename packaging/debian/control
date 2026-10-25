@@ -1,0 +1,12 @@
+Source: zonepad
+Section: utils
+Priority: optional
+Maintainer: ZonaPad contributors
+Build-Depends: debhelper-compat (= 13), python3-all, python3-setuptools
+Standards-Version: 4.6.2
+
+Package: zonepad
+Architecture: all
+Depends: ${python3:Depends}, ${misc:Depends}
+Description: Guided gamepad calibration for Linux
+ ZonaPad measures controller input and applies versioned calibration profiles.
