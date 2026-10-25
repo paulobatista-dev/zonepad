@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from pathlib import Path
+from typing import TYPE_CHECKING, Literal, Protocol
 
 from zonepad.domain.catalog import CatalogMatch
 from zonepad.domain.device import DeviceInfo
@@ -20,6 +21,11 @@ from zonepad.domain.profile import CalibrationProfile
 from zonepad.domain.protocol import Segment
 
 from .calibrate import SegmentPlan
+
+if TYPE_CHECKING:
+    from zonepad.application.measure import MeasureOutcome
+
+from zonepad.domain.metrics import MetricsConfig
 
 
 class DeviceSession(Protocol):
@@ -44,6 +50,25 @@ class ProfileStore(Protocol):
     def load(self, profile_id: str) -> CalibrationProfile: ...
 
     def save(self, profile: CalibrationProfile) -> None: ...
+
+
+class ProfileCatalog(Protocol):
+    """Enumerate profile identifiers while preserving per-item load failures."""
+
+    def list_profiles(self) -> Sequence[str]: ...
+
+
+class WizardMeasureRunner(Protocol):
+    """Execute the validated measurement workflow for one finished capture."""
+
+    def run(
+        self,
+        capture_path: Path,
+        manifest_path: Path,
+        mapping_path: Path,
+        mapping: NormalizationConfig,
+        config: MetricsConfig,
+    ) -> MeasureOutcome: ...
 
 
 class Console(Protocol):

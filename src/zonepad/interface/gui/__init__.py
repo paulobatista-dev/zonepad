@@ -1,16 +1,27 @@
 from __future__ import annotations
 
+import argparse
+import sys
+from collections.abc import Sequence
 
-def run() -> int:
-    """Start the optional Qt GUI, or return a useful message when unavailable."""
+from zonepad import __version__
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="zonepad-gui", description="ZonaPad — calibração guiada")
+    parser.add_argument("--version", action="version", version=f"zonepad {__version__}")
+    parser.add_argument("--smoke", action="store_true", help="monta a janela e encerra")
+    return parser
+
+
+def run(argv: Sequence[str] | None = None) -> int:
+    """Start the optional Qt GUI after handling terminal-only arguments."""
+    args = _parser().parse_args(argv)
     try:
-        from PySide6.QtWidgets import QApplication, QLabel, QWidget
-    except ImportError:
-        raise RuntimeError("GUI opcional: instale o extra 'gui' (PySide6)") from None
-    app = QApplication.instance() or QApplication([])
-    window = QWidget()
-    window.setWindowTitle("ZonaPad")
-    window.setLayout(__import__("PySide6.QtWidgets", fromlist=["QVBoxLayout"]).QVBoxLayout())
-    window.layout().addWidget(QLabel("ZonaPad — captura e calibração"))
-    window.show()
-    return app.exec()
+        from .app import run_app
+    except ImportError as exc:
+        if exc.name is not None and exc.name.startswith("PySide6"):
+            sys.stderr.write("GUI indisponível: instale com `python -m pip install -e '.[gui]'`.\n")
+            return 2
+        raise
+    return run_app(smoke=args.smoke)

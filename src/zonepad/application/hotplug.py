@@ -46,6 +46,7 @@ class PollingHotplugWatcher:
         self._clock = clock
         self._interval_s = validate_poll_interval(interval_s)
         self._current = DiscoverySnapshot()
+        self._has_snapshot = False
 
     @property
     def interval_s(self) -> float:
@@ -53,12 +54,23 @@ class PollingHotplugWatcher:
 
     def snapshot(self) -> DiscoverySnapshot:
         self._current = discover_devices(self._scanner, self._policies)
+        self._has_snapshot = True
         return self._current
+
+    @property
+    def current_snapshot(self) -> DiscoverySnapshot:
+        """Latest sampled state, or an empty snapshot before the first scan."""
+        return self._current
+
+    @property
+    def has_snapshot(self) -> bool:
+        return self._has_snapshot
 
     def poll(self) -> HotplugChange:
         before = self._current
         after = discover_devices(self._scanner, self._policies)
         self._current = after
+        self._has_snapshot = True
         return diff_snapshots(before, after, self._clock.now_ns())
 
 
