@@ -1,5 +1,7 @@
 # Prompt 01 — Runtime CLI end-to-end
 
+> **Início obrigatório:** trabalhe no checkout principal, com `git status --porcelain` vazio, `main` atualizada e uma branch nova criada a partir dela. Não use `git worktree`.
+
 ## Missão
 
 Implemente o primeiro fluxo executável ponta a ponta do ZonaPad no Linux:

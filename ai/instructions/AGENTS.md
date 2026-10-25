@@ -36,6 +36,22 @@ ZonaPad é um aplicativo Python para calibrar controles (gamepads) de forma guia
 - Código segue `clean-code`; arquitetura segue `clean-architecture` e `python-app-architecture`.
 - Afirmações técnicas seguem `evidence-based`; definições e critérios seguem `positive-ontology` quando aplicável.
 
+## Git e branches
+
+- Trabalhe sempre no checkout principal do repositório; não use `git worktree`.
+- Antes de iniciar qualquer incremento, confirme que o working tree está limpo.
+- Atualize a `main` e crie uma branch nova a partir dela:
+
+  ```bash
+  git switch main
+  git pull --ff-only
+  git switch -c <tipo>/<slug>
+  ```
+
+- Uma branch por incremento; não commite direto na `main`.
+- Se houver trabalho não commitado, pare e resolva antes de criar a branch.
+- Não crie, use ou remova worktrees.
+
 ## Arquitetura dos assets de IA
 
 A fonte canônica fica em `ai/`:

@@ -32,7 +32,7 @@ O wizard **não recalcula métricas nem reimplementa qualidade**. Ele orquestra 
 
 ## Contexto verificado (2026-10-25)
 
-Revalide no checkout limpo. Os gates da seção **Validação** são a fonte de verdade.
+Revalide no checkout principal, com working tree limpo. Os gates da seção **Validação** são a fonte de verdade.
 
 | Verificação | Resultado |
 | --- | --- |
@@ -51,12 +51,15 @@ Leia antes de editar: `AGENTS.md`, `docs/specs/metrics-v1.md`, `docs/adr/0003-*.
 
 ## Pré-condições
 
-1. Este prompt deve estar mergeado em `main`. Enquanto não estiver, execute em worktree a partir da branch que contém o prompt e registre a exceção no relatório.
-2. Crie um worktree limpo e a branch de implementação:
+1. Este prompt deve estar mergeado em `main`. Enquanto não estiver, execute no checkout principal a partir da branch que contém o prompt e registre a exceção no relatório.
+2. No checkout principal, crie a branch de implementação a partir da `main`:
 
 ```bash
-git worktree add /tmp/opencode/zonepad-03 -b feat/calibration-wizard main
-cd /tmp/opencode/zonepad-03
+cd /home/costa/Workspace/zonepad
+git status --porcelain        # deve estar vazio
+git switch main
+git pull --ff-only
+git switch -c feat/calibration-wizard
 ```
 
 3. Toolchain, ambiente e baseline:
@@ -78,11 +81,11 @@ git branch --show-current     # feat/calibration-wizard
 git log --oneline main..HEAD  # vazio no início
 ```
 
-Se qualquer gate falhar, pare e peça um checkout limpo.
+Se qualquer gate falhar, pare e peça um checkout principal limpo.
 
 5. Regras de segurança e git:
 
-- Trabalhe apenas neste worktree; não edite `/home/costa/Workspace/zonepad` nem arquivos gerados (`AGENTS.md`, `CLAUDE.md`, `.opencode/`, `.claude/`, `.agents/`, `.codex/`).
+- Trabalhe no checkout principal; não use `git worktree` e não edite arquivos gerados (`AGENTS.md`, `CLAUDE.md`, `.opencode/`, `.claude/`, `.agents/`, `.codex/`).
 - Não use `git stash`, `git reset`, `git checkout --`, `git restore`, `git rebase`, `git push --force` nem `sudo`.
 - Commit local é permitido; push, PR, merge e rebase só com pedido explícito do usuário.
 - Não acesse hardware real sem confirmação; a CI e os testes usam fakes.
@@ -104,7 +107,7 @@ Handoff mínimo: objetivo, contexto, restrições, arquivos relevantes, saída e
 
 | # | Etapa | Executor | Revisor/apoio | Fluxo/skill | Saída | Gate |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Preflight, branch e baseline | `python-engineer` | Claude principal | `/flow-implement-feature` (passos 1–2) | worktree, `feat/calibration-wizard`, baseline pytest | tree limpo; 3.15.0; pytest verde |
+| 1 | Preflight, branch e baseline | `python-engineer` | Claude principal | `/flow-implement-feature` (passos 1–2) | branch `feat/calibration-wizard`, baseline pytest | tree limpo; 3.15.0; pytest verde |
 | 2 | Spec de UX de terminal, state machine, protocolo e retry | `controller-hardware` + `python-engineer` | Claude principal | `/flow-design-feature` + `calibration-metrics`, `calibration-domain`, `python-app-architecture` | `docs/specs/wizard-v1.md` | ordem, durações, instruções, retry e exit codes aprovados pelo usuário |
 | 3 | Decisão de artefatos, nomes e contrato de CLI | `python-engineer` | `controller-hardware`, `prompt-engineer` | `/flow-design-feature` | ADR 0005 (próximo número livre) | layout, exit codes e compatibilidade com `measure` explícitos |
 | 4 | Portas, state machine pura e adapters fake | `python-engineer` | `controller-hardware` (eventos de timing) | `/flow-implement-feature` (passos 4–5) + `clean-architecture` | `application/calibrate.py`, `application/ports.py`, fakes de teste | nenhum `input`/`print`/`sleep` no núcleo; reducer testável |

@@ -35,7 +35,7 @@ Os dados abaixo foram verificados em 2026-10-24 no checkout local. Revalide na b
 | `PySide6 6.12.0` | `requires_python = "<3.16,>=3.10"` |
 | `ruff format --check` em `main` com `py315` | falha em `scripts/sync_ai_assets.py` por reescrita PEP 758 |
 
-O checkout onde este prompt foi redigido está em `feat/runtime-cli-end-to-end`, com alterações não commitadas do prompt 01. Este prompt deve ser executado em outro checkout ou worktree limpo, criado a partir de `main`.
+Este prompt deve ser executado no checkout principal, em uma branch nova criada a partir de `main`. O checkout onde foi redigido pode conter trabalho anterior; confirme que o working tree está limpo e que a `main` está atualizada.
 
 ## Decisões de política
 
@@ -49,8 +49,14 @@ O checkout onde este prompt foi redigido está em `feat/runtime-cli-end-to-end`,
 
 ## Pré-condições e branch
 
-1. O arquivo deste prompt deve estar versionado em `main` antes da execução. Assim o worktree nasce limpo e o próprio prompt não aparece como arquivo não rastreado.
-2. Execute em um checkout limpo criado a partir de `main`. A branch sugerida é `chore/toolchain-python-315`.
+1. O arquivo deste prompt deve estar versionado em `main` antes da execução. Trabalhe no checkout principal, com o working tree limpo.
+2. No checkout principal, com o working tree limpo, crie a branch `chore/toolchain-python-315` a partir da `main`:
+
+```bash
+git switch main
+git pull --ff-only
+git switch -c chore/toolchain-python-315
+```
 3. Confirme o estado antes de editar:
 
 ```bash
@@ -67,12 +73,12 @@ Gates de entrada:
 - `git log --oneline main..HEAD` vazio no início.
 - `git diff --name-only main -- src/ tests/` vazio.
 
-Se qualquer gate falhar, pare e peça um checkout limpo ao usuário. Se o working tree contiver alterações do prompt 01, pare imediatamente.
+Se qualquer gate falhar, pare e peça um checkout principal limpo ao usuário. Se o working tree contiver alterações do prompt 01, pare imediatamente.
 
 Regras de segurança:
 
 - Preserve a branch `feat/runtime-cli-end-to-end` e suas alterações não commitadas.
-- Use worktree ou clone; não use `git stash`, `git reset`, `git checkout --` nem `git restore` para “limpar” o estado.
+- Trabalhe no checkout principal; não use `git worktree`, `git stash`, `git reset`, `git checkout --` nem `git restore` para “limpar” o estado.
 - Não faça merge, rebase, push ou pull request sem pedido explícito.
 - Não use `sudo` e não instale nada no sistema.
 - Não edite arquivos gerados: `AGENTS.md`, `CLAUDE.md`, `.opencode/`, `.claude/`, `.agents/`, `.codex/`.
@@ -525,7 +531,7 @@ Se algum comando não puder ser executado, declare o motivo e o impacto. Não si
 | `.tool-versions` afeta qualquer shell no repositório | `python` muda de versão ao entrar no diretório | documente a ativação e use `.venv/bin/python` para o ambiente |
 | Python 3.15 é recente | usuários em 3.14 ficam bloqueados por `requires-python` | intencional; registre o requisito no README |
 | Ausência de lockfile | ferramentas podem variar dentro dos pisos | fora do escopo; prompt 06 avalia lockfile |
-| Prompt 01 em andamento no mesmo checkout | mistura de mudanças | worktree limpo + preflight; nada de stash/reset |
+| Trabalho anterior no mesmo checkout | mistura de mudanças | `git status --porcelain` vazio e branch criada a partir de `main`; nada de stash/reset |
 | Espelhos dessincronizados | instruções divergentes entre ferramentas | rodar o gerador e validar com `--check` |
 
 ## Fora de escopo
@@ -558,16 +564,18 @@ Se um gate falhar, pare e reporte. Não relaxe configuração, não adicione `# 
 
 ### Preparação
 
-O arquivo deste prompt deve estar versionado em `main`. Crie um worktree limpo e abra o Codex nele:
+O arquivo deste prompt deve estar versionado em `main`. Trabalhe no checkout principal e abra o Codex nele:
 
 ```bash
 cd /home/costa/Workspace/zonepad
-git worktree add -b chore/toolchain-python-315 ../zonepad-toolchain main
-cd ../zonepad-toolchain
+git status --porcelain          # deve estar vazio
+git switch main
+git pull --ff-only
+git switch -c chore/toolchain-python-315
 codex
 ```
 
-Se a branch já existir, use `git worktree add ../zonepad-toolchain chore/toolchain-python-315`.
+Não use `git worktree`.
 
 ### Texto para colar no Codex
 
@@ -577,7 +585,7 @@ $flow-implement-feature
 Siga o prompt em ai/prompts/00-toolchain-python-315-asdf-virtualenv.md.
 Leia o arquivo inteiro antes de editar.
 
-Execute em um checkout limpo criado a partir de main, na branch chore/toolchain-python-315.
+Execute no checkout principal, com working tree limpo, na branch chore/toolchain-python-315.
 Não acesse, altere, faça stash, reset ou commit na branch feat/runtime-cli-end-to-end
 nem nas alterações não commitadas do prompt 01.
 
