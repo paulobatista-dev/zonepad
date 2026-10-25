@@ -4,10 +4,40 @@ Aplicativo Python para calibrar controles (gamepads) de forma guiada e reproduz�
 
 > **Estado atual:** MVP Linux com pipeline raw → normalizado → calibrado, replay determinístico, perfis JSON versionados, CLI e GUI Qt opcional.
 
-## Instalação e uso
+## Requisitos
+
+- Linux (MVP atual).
+- Python 3.15.x. O projeto fixa `3.15.0` em `.tool-versions` e declara
+  `requires-python = ">=3.15,<3.16"`.
+
+## Ambiente de desenvolvimento
+
+O projeto usa asdf para a versão do Python e virtualenv para o ambiente.
 
 ```bash
-python -m pip install -e .
+asdf plugin add python          # apenas se o plugin ainda não existir
+asdf install python 3.15.0      # apenas se a versão ainda não estiver instalada
+asdf set python 3.15.0          # grava .tool-versions
+python --version                # Python 3.15.0
+
+python -m pip install --user virtualenv   # ou: pipx install virtualenv
+python -m virtualenv --python "$(asdf which python)" .venv
+. .venv/bin/activate
+python -m pip install -e '.[dev]'
+```
+
+Alternativa sem virtualenv instalado: `python -m venv .venv`, ative e rode
+`python -m pip install -e '.[dev]'`.
+
+O extra `dev` instala pytest, ruff, mypy e virtualenv. A CI usa Python 3.15.0
+e o mesmo extra.
+
+## Instalação e uso
+
+Dentro de um ambiente com Python 3.15:
+
+```bash
+python -m pip install .
 zonepad list
 zonepad profiles --directory ~/.config/zonepad/profiles
 zonepad replay captura.jsonl
@@ -17,7 +47,7 @@ O backend Linux lê `/dev/input/event*` (evdev), aplica o perfil em tempo real e
 
 O runtime programático é exposto por `zonepad.application.runtime.run_saved_profile`; a CLI inicial cobre descoberta, perfis e replay. A composição de ranges medidos por controle e o wizard completo de calibração são os próximos incrementos da interface.
 
-Para a GUI, instale o extra opcional: `python -m pip install -e '.[gui]'` e execute `zonepad-gui`.
+Para a GUI, instale o extra opcional: `python -m pip install -e '.[gui]'` (ou `'.[dev,gui]'`) e execute `zonepad-gui`.
 
 ## Arquitetura
 
@@ -47,6 +77,7 @@ Perfis são salvos atomicamente em JSON com `schema_version=1`; campos desconhec
 │   └── sync_ai_assets.py        # gera os espelhos
 ├── tests/
 │   └── test_sync_ai_assets.py
+├── .tool-versions               # versão do Python para asdf
 ├── .opencode/                   # gerado: agentes, skills, comandos
 ├── .claude/                     # gerado: agentes, skills
 ├── .agents/                     # gerado: skills (Codex)
@@ -70,7 +101,7 @@ python scripts/sync_ai_assets.py
 
 # 3. valide antes de concluir
 python scripts/sync_ai_assets.py --check
-python -m pytest
+python -m pytest -q
 ```
 
 ## Agentes
@@ -129,9 +160,10 @@ Invocação:
 
 Prompts versionados em `ai/prompts/` para executar incrementos no Claude Code ou Codex. Eles não são espelhados pelo gerador.
 
-- **Claude Code:** referencie `@ai/prompts/01-runtime-cli-end-to-end.md`.
-- **Codex:** referencie `ai/prompts/01-runtime-cli-end-to-end.md` ou cole o conteúdo.
-- O primeiro incremento é o comando `zonepad run` com evdev → perfil → uinput.
+- `00-toolchain-python-315-asdf-virtualenv.md` é pré-requisito do `01-runtime-cli-end-to-end.md`: fixa Python 3.15.0 (asdf), virtualenv, `pyproject.toml` e CI.
+- **Claude Code:** referencie `@ai/prompts/00-toolchain-python-315-asdf-virtualenv.md` e depois `@ai/prompts/01-runtime-cli-end-to-end.md`.
+- **Codex:** referencie `ai/prompts/00-toolchain-python-315-asdf-virtualenv.md` e depois `ai/prompts/01-runtime-cli-end-to-end.md`, ou cole o conteúdo.
+- O primeiro incremento de runtime é o comando `zonepad run` com evdev → perfil → uinput.
 
 ## GitHub
 
@@ -194,11 +226,13 @@ O gerador:
 ## Validação
 
 ```bash
-python -m unittest discover -s tests -v
+python -m pytest -q
+python -m ruff check .
+python -m mypy src/zonepad
 python scripts/sync_ai_assets.py --check
 ```
 
-A CI em `.github/workflows/ai-assets.yml` roda os dois comandos.
+A CI em `.github/workflows/ai-assets.yml` usa Python 3.15.0, instala `.[dev]` e roda esses quatro comandos.
 
 ## Licença
 

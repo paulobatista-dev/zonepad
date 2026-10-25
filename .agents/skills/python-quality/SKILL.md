@@ -21,7 +21,7 @@ Use esta skill para:
 
 | Objetivo | Ferramenta | Observação |
 | --- | --- | --- |
-| Ambiente/deps | `uv` | Quando disponível; lockfile versionado. |
+| Ambiente/deps | `asdf` + `virtualenv` + `pip` | Versão fixada em `.tool-versions`; extras em `pyproject.toml` (`.[dev]`). |
 | Lint/format | `ruff` | Uma ferramenta para estilo e regras. |
 | Tipos | `mypy` ou `pyright` | Escolha uma e mantenha no CI. |
 | Testes | `pytest` | Fixtures, parametrização, `raises`. |
@@ -91,7 +91,7 @@ def test_deadzone_nao_aumenta_magnitude(x: float, deadzone: float) -> None: ...
 
 ## Lint e tipos
 
-- `ruff check .` e `ruff format --check .` no CI.
+- `ruff check .` no CI; `ruff format --check .` localmente até entrar na CI (ver CI mínima).
 - Tipar APIs públicas e retornos; `Any` exige justificativa.
 - Não use `# type: ignore` sem código de erro e motivo.
 - Prefira `Protocol` a herança pesada.
@@ -99,12 +99,16 @@ def test_deadzone_nao_aumenta_magnitude(x: float, deadzone: float) -> None: ...
 
 ## CI mínima
 
+A CI usa Python 3.15.0, instala `.[dev]` e roda, nesta ordem:
+
 ```text
-1. ruff check + format check
-2. mypy/pyright
+1. ruff check
+2. mypy
 3. pytest
 4. python scripts/sync_ai_assets.py --check
 ```
+
+O `ruff format --check` entra na CI quando `scripts/sync_ai_assets.py` passar nele sob `py315` (prompt 06).
 
 A CI não deve depender de hardware real, rede instável ou credenciais.
 
@@ -129,7 +133,7 @@ A CI não deve depender de hardware real, rede instável ou credenciais.
 - [ ] Testes cobrem bordas e erros, não só o caminho feliz.
 - [ ] Testes são determinísticos e não dependem de hardware.
 - [ ] Lint e tipos passam.
-- [ ] A CI roda testes + sync check.
+- [ ] A CI roda testes + lint + tipos + sync check.
 - [ ] Performance foi medida no caminho crítico.
 - [ ] Perfis e capturas são validados antes do uso.
 - [ ] Não há `print`, `eval` ou exceção silenciada.
