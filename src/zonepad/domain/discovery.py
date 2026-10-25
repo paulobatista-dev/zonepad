@@ -265,6 +265,7 @@ class GamepadFilterPolicy:
     btn_south: int
     btn_tool_finger: int
     btn_tool_pen: int
+    btn_stylus: int
     joystick_buttons: frozenset[int]
     mouse_buttons: frozenset[int]
     mouse_rule_buttons: frozenset[int]
@@ -344,6 +345,11 @@ def _classify_capabilities(caps: DeviceCapabilities, policy: GamepadFilterPolicy
         if policy.prop_direct in caps.properties or policy.btn_tool_pen in buttons:
             return Verdict(DeviceClass.UNKNOWN, None, ("not_a_gamepad:touchscreen_or_tablet",))
         return Verdict(DeviceClass.TOUCHPAD, None, ("not_a_gamepad:touchpad",))
+    # Tablet pads announce BTN_SOUTH next to a stylus or pen without the pointer
+    # property (wacom_wac.c:4116-4125); udev-builtin-input_id.c:233-236 checks the
+    # stylus before joysticks, and so does this rule.
+    if has_xy and (policy.btn_stylus in buttons or policy.btn_tool_pen in buttons):
+        return Verdict(DeviceClass.UNKNOWN, None, ("not_a_gamepad:touchscreen_or_tablet",))
 
     gamepad_kind: GamepadKind | None = None
     if has_abs_events and has_xy:

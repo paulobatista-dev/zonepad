@@ -97,6 +97,8 @@ class CatalogEntry:
             raise ValueError(f"catalog entry {self.entry_id} must define all mapping channels")
         if len(set(self.channels.values())) != len(self.channels):
             raise ValueError(f"catalog entry {self.entry_id} repeats channel codes")
+        if not set(self.channels.values()) <= self.required_abs:
+            raise ValueError(f"catalog entry {self.entry_id} maps codes outside required_abs")
         if set(self.center_override) - set(STICK_CHANNELS):
             raise ValueError(f"catalog entry {self.entry_id} overrides a non-stick center")
         for name in ("channels", "known_ranges", "center_override", "buttons"):

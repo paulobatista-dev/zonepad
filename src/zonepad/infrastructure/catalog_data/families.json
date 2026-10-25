@@ -103,7 +103,8 @@
       "quirks": [
         "uniq_empty",
         "name_from_driver_table",
-        "y_inverted_by_driver"
+        "y_inverted_by_driver",
+        "also_matches_original_xbox_by_interface_protocol"
       ],
       "evidence": [
         {
@@ -129,6 +130,11 @@
         {
           "kind": "kernel_source",
           "ref": "drivers/input/joystick/xpad.c:2103-2112",
+          "commit": "330517c63aa9"
+        },
+        {
+          "kind": "kernel_source",
+          "ref": "drivers/input/joystick/xpad.c:2104-2113",
           "commit": "330517c63aa9"
         }
       ],

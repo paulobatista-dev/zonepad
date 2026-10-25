@@ -62,6 +62,7 @@ BTN_TL2 = 0x138
 BTN_TR2 = 0x139
 BTN_TOOL_PEN = 0x140
 BTN_TOOL_FINGER = 0x145
+BTN_STYLUS = 0x14B
 
 # Input properties.
 INPUT_PROP_POINTER = 0x00
@@ -107,6 +108,7 @@ def gamepad_filter_policy() -> GamepadFilterPolicy:
         btn_south=BTN_SOUTH,
         btn_tool_finger=BTN_TOOL_FINGER,
         btn_tool_pen=BTN_TOOL_PEN,
+        btn_stylus=BTN_STYLUS,
         joystick_buttons=frozenset(range(BTN_JOYSTICK, BTN_JOYSTICK + 0x10)),
         mouse_buttons=frozenset(range(BTN_MOUSE, BTN_MOUSE + 0x10)),
         mouse_rule_buttons=frozenset(range(BTN_MOUSE, BTN_MOUSE + 0x08)),

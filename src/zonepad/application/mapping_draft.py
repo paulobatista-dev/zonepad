@@ -14,12 +14,14 @@ from zonepad.domain.errors import (
     AmbiguousAxisAssignmentError,
     DeviceAccessDeniedError,
     MappingConflictError,
+    UnsupportedPlatformError,
 )
 from zonepad.domain.identity import Connection, MappingKey
 from zonepad.domain.mapping_draft import (
     DraftRules,
     InsufficientCapabilities,
     MappingDraft,
+    RangeSource,
     build_draft,
 )
 
@@ -28,6 +30,7 @@ from .ports import AbsInfoReader, DeviceCatalog, MappingRecord
 
 LOGGER = logging.getLogger("zonepad.mapping_draft")
 ABSINFO_PERMISSION_DENIED = "absinfo_permission_denied"
+ABSINFO_UNSUPPORTED_PLATFORM = "absinfo_unsupported_platform"
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,14 +63,19 @@ def draft_mapping(
     match = catalog.match(observed)
     absinfo: Mapping[int, AbsInfo] = MappingProxyType({})
     access_denied = False
+    probe_warning: str | None = None
     probed_node: str | None = None
     if absinfo_reader is not None:
         codes = _probe_codes(match, rules, capabilities.axis_codes)
         probed_node = observed.event_node
         try:
             absinfo = MappingProxyType(dict(absinfo_reader.read_absinfo(probed_node, codes)))
+        except UnsupportedPlatformError as exc:
+            probe_warning = ABSINFO_UNSUPPORTED_PLATFORM
+            LOGGER.warning("absinfo unavailable on this platform: %s", exc)
         except DeviceAccessDeniedError:
             access_denied = True
+            probe_warning = ABSINFO_PERMISSION_DENIED
             LOGGER.warning(
                 "absinfo permission denied node=%s; using catalog ranges",
                 probed_node,
@@ -86,8 +94,12 @@ def draft_mapping(
         return result
     if result.axis_candidates and not accept_axis_guess:
         raise AmbiguousAxisAssignmentError(result.axis_candidates)
-    if access_denied:
-        result = _with_warning(result, ABSINFO_PERMISSION_DENIED)
+    if probe_warning is not None:
+        result = _with_warning(result, probe_warning)
+    elif absinfo_reader is not None:
+        for channel, source in result.range_sources.items():
+            if source is RangeSource.CATALOG:
+                result = _with_warning(result, f"absinfo_unavailable:{result.codes[channel]}")
     return DraftOutcome(result, match, absinfo, probed_node)
 
 
@@ -123,6 +135,7 @@ def build_mapping_record(
         mapping_text=mapping_text,
         provenance=outcome.draft.provenance,
         range_source=outcome.draft.range_source.value,
+        range_sources={name: source.value for name, source in outcome.draft.range_sources.items()},
         absinfo=outcome.absinfo,
         created_at=created_at,
         app_version=app_version,

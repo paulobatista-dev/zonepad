@@ -11,6 +11,7 @@ import errno
 import fcntl
 import logging
 import os
+import platform
 import re
 import struct
 from collections.abc import Callable, Mapping, Sequence
@@ -18,7 +19,11 @@ from pathlib import Path
 from types import MappingProxyType
 
 from zonepad.domain.discovery import AbsInfo, absinfo_from_kernel
-from zonepad.domain.errors import DeviceAccessDeniedError, DeviceNotFoundError
+from zonepad.domain.errors import (
+    DeviceAccessDeniedError,
+    DeviceNotFoundError,
+    UnsupportedPlatformError,
+)
 
 from .linux_input_policy import ABS_MAX
 
@@ -38,6 +43,10 @@ _IOC_READ = 2
 _EVDEV_IOC_TYPE = ord("E")
 _EVIOCGABS_BASE_NR = 0x40
 
+# Machines whose ioctl encoding follows asm-generic/ioctl.h (platform.machine()).
+ASM_GENERIC_IOCTL_MACHINES = frozenset(
+    {"x86_64", "amd64", "i386", "i486", "i586", "i686", "aarch64", "arm64", "riscv64"}
+)
 _EVENT_NODE = re.compile(r"event[0-9]+", re.ASCII)
 _DENIED_ERRNOS = frozenset({errno.EACCES, errno.EPERM})
 _GONE_ERRNOS = frozenset({errno.ENODEV, errno.ENOENT, errno.ENXIO})
@@ -63,6 +72,12 @@ def eviocgabs(code: int) -> int:
     return _ior(_EVDEV_IOC_TYPE, _EVIOCGABS_BASE_NR + code, ABSINFO_STRUCT.size)
 
 
+def is_asm_generic_machine(machine: str) -> bool:
+    """32-bit ARM reports ``armv6l``/``armv7l``/``armv8l``; all use asm-generic."""
+    normalized = machine.lower()
+    return normalized in ASM_GENERIC_IOCTL_MACHINES or normalized.startswith("armv")
+
+
 def _ioctl(fd: int, request: int, buffer: bytearray) -> object:
     return fcntl.ioctl(fd, request, buffer, True)
 
@@ -77,15 +92,22 @@ class EvdevAbsInfoReader:
         opener: Opener = os.open,
         ioctl: Ioctl = _ioctl,
         closer: Closer = os.close,
+        machine: Callable[[], str] = platform.machine,
     ) -> None:
         self._dev_root = dev_root
         self._opener = opener
         self._ioctl = ioctl
         self._closer = closer
+        self._machine = machine
 
     def read_absinfo(self, event_node: str, codes: Sequence[int]) -> Mapping[int, AbsInfo]:
         if not _EVENT_NODE.fullmatch(event_node):
             raise DeviceNotFoundError(f"invalid input node: {event_node!r}")
+        machine = self._machine()
+        if not is_asm_generic_machine(machine):
+            raise UnsupportedPlatformError(
+                f"EVIOCGABS encoding is only verified for asm-generic ioctls, not {machine!r}"
+            )
         path = self._dev_root / event_node
         flags = os.O_RDONLY | os.O_NONBLOCK | os.O_CLOEXEC
         try:
