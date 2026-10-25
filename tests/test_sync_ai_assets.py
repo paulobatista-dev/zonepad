@@ -39,13 +39,50 @@ class SyncPlanTests(unittest.TestCase):
             self.assertEqual(parsed["name"], Path(key).stem, key)
             self.assertTrue(parsed["developer_instructions"].strip(), key)
 
+    def test_codex_profiles_are_valid_toml(self) -> None:
+        files = [
+            key
+            for key in self.plan.files
+            if key.startswith(".codex/profiles/") and key.endswith(".config.toml")
+        ]
+        self.assertTrue(files)
+        for key in files:
+            data, _ = self.plan.files[key]
+            parsed = tomllib.loads(data.decode("utf-8"))
+            self.assertIn("developer_instructions", parsed, key)
+            self.assertTrue(parsed["developer_instructions"].strip(), key)
+            self.assertNotIn("name", parsed, key)
+            self.assertNotIn("description", parsed, key)
+
     def test_agents_are_mirrored_in_all_targets(self) -> None:
-        names = {agent.name for agent in sync.load_agents(sync.ROOT)}
-        self.assertTrue(names)
-        for name in names:
-            self.assertIn(f".opencode/agents/{name}.md", self.plan.files)
-            self.assertIn(f".claude/agents/{name}.md", self.plan.files)
-            self.assertIn(f".codex/agents/{name}.toml", self.plan.files)
+        agents = sync.load_agents(sync.ROOT)
+        self.assertTrue(agents)
+        for agent in agents:
+            self.assertIn(f".opencode/agents/{agent.name}.md", self.plan.files)
+            self.assertIn(f".claude/agents/{agent.name}.md", self.plan.files)
+            if "subagent" in agent.modes:
+                self.assertIn(f".codex/agents/{agent.name}.toml", self.plan.files)
+            if "direct" in agent.modes:
+                self.assertIn(
+                    f".codex/profiles/{agent.name}.config.toml", self.plan.files
+                )
+
+    def test_opencode_agents_use_expected_mode(self) -> None:
+        for agent in sync.load_agents(sync.ROOT):
+            text = self.plan.files[f".opencode/agents/{agent.name}.md"][0].decode("utf-8")
+            self.assertIn(f"mode: {sync.opencode_mode(agent.modes)}", text)
+
+    def test_opencode_mode_mapping(self) -> None:
+        self.assertEqual(sync.opencode_mode(("direct",)), "primary")
+        self.assertEqual(sync.opencode_mode(("subagent",)), "subagent")
+        self.assertEqual(sync.opencode_mode(("direct", "subagent")), "all")
+        self.assertEqual(sync.opencode_mode(("subagent", "direct")), "all")
+
+    def test_parse_modes_rejects_invalid_values(self) -> None:
+        path = Path("agent.json")
+        for raw in ([], "direct", ["primary"], ["direct", "direct"], [1]):
+            with self.subTest(raw=raw), self.assertRaises(sync.SyncError):
+                sync.parse_modes(raw, path)
 
     def test_skills_and_flows_are_mirrored(self) -> None:
         skills = sync.validate_skills(sync.ROOT)
@@ -103,6 +140,15 @@ class SyncWriteTests(unittest.TestCase):
             root = Path(tmp)
             sync.write_plan(self.plan, root)
             path = root / ".opencode" / "agents" / "prompt-engineer.md"
+            path.write_text(path.read_text(encoding="utf-8") + "\nmanual\n", encoding="utf-8")
+            issues = sync.check_plan(self.plan, root)
+            self.assertTrue(any("desatualizado" in issue for issue in issues), issues)
+
+    def test_check_detects_modified_codex_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sync.write_plan(self.plan, root)
+            path = root / ".codex" / "profiles" / "python-engineer.config.toml"
             path.write_text(path.read_text(encoding="utf-8") + "\nmanual\n", encoding="utf-8")
             issues = sync.check_plan(self.plan, root)
             self.assertTrue(any("desatualizado" in issue for issue in issues), issues)

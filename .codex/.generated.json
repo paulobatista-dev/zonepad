@@ -4,6 +4,9 @@
   "files": [
     "agents/controller-hardware.toml",
     "agents/prompt-engineer.toml",
-    "agents/python-engineer.toml"
+    "agents/python-engineer.toml",
+    "profiles/controller-hardware.config.toml",
+    "profiles/prompt-engineer.config.toml",
+    "profiles/python-engineer.config.toml"
   ]
 }

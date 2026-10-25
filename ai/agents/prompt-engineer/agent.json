@@ -1,7 +1,10 @@
 {
   "name": "prompt-engineer",
   "description": "Especialista em projetar, revisar e testar prompts, descrições de skills e fluxos para agentes de IA. Use ao criar ou ajustar instruções de agentes, skills, fluxos, contratos de comportamento ou avaliações de prompt.",
-  "mode": "subagent",
+  "modes": [
+    "direct",
+    "subagent"
+  ],
   "tools": [
     "read",
     "write",
@@ -11,7 +14,8 @@
     "shell",
     "webfetch",
     "websearch",
-    "skill"
+    "skill",
+    "subagent"
   ],
   "skills": [
     "prompt-design",

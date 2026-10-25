@@ -2,6 +2,7 @@
 
 - **Status:** aceito
 - **Data:** 2026-10-24
+- **Atualização:** os modos direto e subagente e o perfil de agente do Codex são tratados no ADR 0007.
 
 ## Contexto
 

@@ -1,7 +1,10 @@
 {
   "name": "controller-hardware",
   "description": "Especialista em hardware e protocolos de controles: HID/SDL3, sticks, triggers, deadzones, ruído, circularidade e quirks por plataforma. Use para decisões de medição, calibração e compatibilidade de dispositivos.",
-  "mode": "subagent",
+  "modes": [
+    "direct",
+    "subagent"
+  ],
   "tools": [
     "read",
     "write",
@@ -11,7 +14,8 @@
     "shell",
     "webfetch",
     "websearch",
-    "skill"
+    "skill",
+    "subagent"
   ],
   "skills": [
     "controller-protocols",
