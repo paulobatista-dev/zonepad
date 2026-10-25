@@ -128,6 +128,13 @@ class MappingDraft:
         return RangeSource.EVDEV_ABSINFO
 
     @property
+    def range_sources(self) -> Mapping[str, RangeSource]:
+        """Origin of the range of every channel, in ``MAPPING_CHANNELS`` order."""
+        sources = {name: axis.range_source for name, axis in self.axes.items()}
+        sources.update({name: trigger.range_source for name, trigger in self.triggers.items()})
+        return MappingProxyType({name: sources[name] for name in MAPPING_CHANNELS})
+
+    @property
     def codes(self) -> Mapping[str, int]:
         result = {name: axis.code for name, axis in self.axes.items()}
         result.update({name: trigger.code for name, trigger in self.triggers.items()})

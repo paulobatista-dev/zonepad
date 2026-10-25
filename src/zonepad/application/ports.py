@@ -170,6 +170,7 @@ class MappingRecord:
     mapping_text: str
     provenance: DraftProvenance
     range_source: str
+    range_sources: Mapping[str, str]
     absinfo: Mapping[int, AbsInfo]
     created_at: str
     app_version: str

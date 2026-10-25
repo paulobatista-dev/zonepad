@@ -81,6 +81,7 @@ _DRAFT_FIELDS = frozenset(
         "catalog_version",
         "catalog_source",
         "range_source",
+        "range_sources",
         "provisional",
         "provisional_fields",
         "absinfo",
@@ -88,6 +89,8 @@ _DRAFT_FIELDS = frozenset(
     }
 )
 _ABSINFO_FIELDS = frozenset({"minimum", "maximum", "fuzz", "flat", "resolution", "value_at_probe"})
+_CHANNELS = frozenset({"lx", "ly", "rx", "ry", "lt", "rt"})
+_RANGE_SOURCES = {"evdev_absinfo", "catalog"}
 _INDEX_ENTRY_FIELDS = frozenset(
     {"stable_id", "connection", "mapping_sha256", "provisional", "fragile", "updated_at"}
 )
@@ -145,6 +148,7 @@ def dumps_identity(record: MappingRecord, mapping_sha256: str) -> str:
             "catalog_version": provenance.catalog_version,
             "catalog_source": provenance.catalog_source,
             "range_source": record.range_source,
+            "range_sources": dict(record.range_sources),
             "provisional": provenance.provisional,
             "provisional_fields": list(provenance.provisional_fields),
             "absinfo": {
@@ -342,9 +346,14 @@ def parse_identity(text: str, *, expected_stable_id: str) -> _Sidecar:
     _choice(
         draft["catalog_source"], {"user", "builtin", "generic"}, "identity.draft.catalog_source"
     )
-    range_source = _choice(
-        draft["range_source"], {"evdev_absinfo", "catalog"}, "identity.draft.range_source"
-    )
+    range_source = _choice(draft["range_source"], _RANGE_SOURCES, "identity.draft.range_source")
+    range_sources = _object(draft["range_sources"], "identity.draft.range_sources")
+    _exact(range_sources, _CHANNELS, "identity.draft.range_sources")
+    for channel, source in range_sources.items():
+        _choice(source, _RANGE_SOURCES, f"identity.draft.range_sources.{channel}")
+    expected_overall = "catalog" if "catalog" in range_sources.values() else "evdev_absinfo"
+    if range_source != expected_overall:
+        raise InvalidSidecarError("identity.draft.range_source disagrees with range_sources")
     provisional = _boolean(draft["provisional"], "identity.draft.provisional")
     _string_list(draft["provisional_fields"], "identity.draft.provisional_fields")
     _string_list(draft["warnings"], "identity.draft.warnings")
