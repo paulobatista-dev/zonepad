@@ -22,7 +22,7 @@ Não use `git worktree`. Uma branch por incremento. Não commite direto na `main
 ### Claude Code
 
 ```text
-Use o prompt em @ai/prompts/05-gui-pyside6.md.
+Use o prompt em @ai/prompts/06-quality-release.md.
 Leia o arquivo inteiro, execute as etapas na ordem e valide com os comandos pedidos.
 ```
 
@@ -32,12 +32,12 @@ Ou use o fluxo:
 /flow-implement-feature
 ```
 
-Para o prompt 05, comece por `/flow-design-feature` antes de `/flow-implement-feature`.
+Para o prompt 06, comece por `/flow-design-feature` antes de `/flow-implement-feature`.
 
 ### Codex
 
 ```text
-Siga o prompt em ai/prompts/05-gui-pyside6.md.
+Siga o prompt em ai/prompts/06-quality-release.md.
 Leia o arquivo inteiro, execute as etapas na ordem e valide com os comandos pedidos.
 ```
 
@@ -47,7 +47,7 @@ Ou use a skill de fluxo:
 $flow-implement-feature
 ```
 
-Para o prompt 05, comece por `$flow-design-feature` antes de `$flow-implement-feature`.
+Para o prompt 06, comece por `$flow-design-feature` antes de `$flow-implement-feature`.
 
 ## Convenções
 
@@ -60,7 +60,7 @@ Para o prompt 05, comece por `$flow-design-feature` antes de `$flow-implement-fe
 
 ## Sequência planejada
 
-Os prompts 00 a 04 estão concluídos e mergeados em `main`. Execute cada incremento em branch própria criada a partir de `main`, no checkout principal e com toolchain 3.15.0.
+Os prompts 00 a 05 estão concluídos e mergeados em `main`. O prompt 06 é o último incremento planejado do roadmap atual. Execute cada incremento em branch própria criada a partir de `main`, no checkout principal e com toolchain 3.15.0.
 
 | Prompt | Incremento | Status |
 | --- | --- | --- |
@@ -69,12 +69,12 @@ Os prompts 00 a 04 estão concluídos e mergeados em `main`. Execute cada increm
 | `02-calibration-metrics.md` | Métricas, relatório e profile builder | Concluído — mergeado no PR #5 (spec `docs/specs/metrics-v1.md`, ADR `docs/adr/0004-metricas-relatorio-separado-e-perfil-v1.md`) |
 | `03-calibration-wizard.md` | Wizard CLI de calibração | Concluído — mergeado no PR #7 |
 | `04-device-discovery-mapping.md` | Descoberta de gamepads, identidade estável e mapeamento por família | Concluído — mergeado no PR #12 (spec `docs/specs/device-discovery-v1.md`, ADR `docs/adr/0006-descoberta-e-identidade-de-dispositivos.md`) |
-| `05-gui-pyside6.md` | GUI PySide6 sobre o núcleo de calibração | Em implementação na branch `feat/gui-pyside6`; spec e ADR aprovados, revisão final em andamento |
-| `06-quality-release.md` | Ruff/mypy/cobertura/packaging | A criar |
+| `05-gui-pyside6.md` | GUI PySide6 sobre o núcleo de calibração | Concluído — mergeado no PR #14 (spec `docs/specs/gui-v1.md`, ADR `docs/adr/0008-gui-pyside6-como-adaptador.md`) |
+| `06-quality-release.md` | Qualidade, dependências, ambiente, build e release | Pronto para execução |
 
 O prompt 02 é pré-requisito do 03: ele entrega o motor de medição e a geração de perfil; o wizard apenas orquestra esse motor e a política de retry. O prompt 04 substitui a seleção manual de dispositivo e o mapping manual usados no 03. O prompt 05 é adaptador: não altera domínio, métricas, schema de perfil nem o wizard CLI.
 
-O prompt 05 está em execução na branch `feat/gui-pyside6`. A spec `docs/specs/gui-v1.md` foi aprovada e o ADR 0008 foi aceito antes da implementação. O incremento implementa a GUI como adaptador do núcleo existente; a revisão final e a abertura do PR seguem pendentes. A GUI exige o extra opcional `gui` (`python -m pip install -e '.[dev,gui]'`); a CLI e o domínio continuam funcionando sem PySide6.
+O prompt 06 fecha o roadmap: consolida dependências e extras, documenta o ambiente de desenvolvimento, faz a CI executar os testes de GUI que hoje são pulados, valida o conteúdo do wheel/sdist e prova a instalação limpa. Ele não adiciona features nem altera domínio, métricas, schema de perfil ou GUI. A spec é `docs/specs/dev-environment-v1.md` e o ADR é `docs/adr/0009-*`, ambos aprovados antes da implementação. A GUI continua exigindo o extra opcional `gui` (`python -m pip install -e '.[dev,gui]'`); a CLI e o domínio funcionam sem PySide6.
 
 ## Regra de ouro
 
