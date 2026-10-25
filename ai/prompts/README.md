@@ -47,14 +47,14 @@ Para o prompt 03, comece por `$flow-design-feature` antes de `$flow-implement-fe
 
 ## Sequência planejada
 
-Os prompts 00, 01 e 02 estão concluídos e mergeados em `main`. O prompt 03 está pronto para execução. Execute cada incremento em branch própria criada a partir de `main`, com worktree limpo e toolchain 3.15.0.
+Os prompts 00, 01 e 02 estão concluídos e mergeados em `main`. O prompt 03 está implementado e aguardando merge. Execute cada incremento em branch própria criada a partir de `main`, com worktree limpo e toolchain 3.15.0.
 
 | Prompt | Incremento | Status |
 | --- | --- | --- |
 | `00-toolchain-python-315-asdf-virtualenv.md` | Python 3.15.0, asdf, virtualenv, pyproject e CI | Concluído — mergeado em `main` |
 | `01-runtime-cli-end-to-end.md` | Comando `zonepad run` com evdev → perfil → uinput | Concluído — mergeado em `main` |
 | `02-calibration-metrics.md` | Métricas, relatório e profile builder | Concluído — mergeado no PR #5 (spec `docs/specs/metrics-v1.md`, ADR `docs/adr/0004-metricas-relatorio-separado-e-perfil-v1.md`) |
-| `03-calibration-wizard.md` | Wizard CLI de calibração | Pronto para Claude Code |
+| `03-calibration-wizard.md` | Wizard CLI de calibração | Implementado — aguardando merge |
 | `04-device-discovery-mapping.md` | Descoberta e mapeamento por família | A criar |
 | `05-gui-pyside6.md` | GUI funcional | A criar |
 | `06-quality-release.md` | Ruff/mypy/cobertura/packaging | A criar |

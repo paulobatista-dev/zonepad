@@ -102,7 +102,7 @@ zonepad measure captura.jsonl \
   --save-profile ~/.config/zonepad/profiles
 ```
 
-**Captura.** JSONL com um frame raw por linha: `device_id`, `timestamp_ns` (inteiro monotônico), `axes`, `triggers` (inteiros) e `buttons` (opcional). O leitor é estrito: rejeita `NaN`/`Infinity`, timestamps float ou decrescentes, `device_id` misto e campos desconhecidos, citando arquivo e linha. A gravação guiada fica para o wizard (prompt 03); por enquanto, a captura vem de qualquer ferramenta que escreva esse formato.
+**Captura.** JSONL com um frame raw por linha: `device_id`, `timestamp_ns` (inteiro monotônico), `axes`, `triggers` (inteiros) e `buttons` (opcional). O leitor é estrito: rejeita `NaN`/`Infinity`, timestamps float ou decrescentes, `device_id` misto e campos desconhecidos, citando arquivo e linha. A gravação guiada é feita por `zonepad calibrate`; capturas produzidas por outras ferramentas que escrevam esse formato continuam aceitas.
 
 **Protocolo (~85 s).** Aquecimento de 2 s sem tocar (fora de segmento); repouso de 5 s (`rest`, com `warmup_ns` de 1 s); por stick, 3 voltas horárias e 3 anti-horárias na borda do gate (`circle`); por trigger, 5 ciclos de pressionar até o fundo e soltar (`trigger_sweep`). O repouso efetivo precisa de pelo menos 3 s e 150 frames; cada volta, de pelo menos 100 frames.
 
@@ -149,6 +149,25 @@ Campos opcionais: `capture_sha256`, `nominal_rate_hz`, `connection` (`usb`, `blu
 - Botões são ignorados, e a comparação entre sessões fica para o wizard.
 - Os thresholds e fatores ainda não foram validados com capturas reais de vários controles.
 - A captura inteira é carregada em memória (cerca de 10 mil frames por sessão de 85 s a 125 Hz).
+
+### Calibrar com o wizard interativo
+
+`zonepad calibrate` orienta uma sessão de calibração pelo terminal, grava captura JSONL e manifesto compatíveis com `zonepad measure`, mostra a qualidade e oferece salvar um perfil v1. A execução exige TTY; `--help` funciona sem TTY. O mapping permanece manual e deve definir os quatro eixos e os dois triggers.
+
+```bash
+zonepad calibrate --device event3 --mapping controle.json
+```
+
+Sem `--device`, o comando apresenta os dispositivos disponíveis para seleção manual. Antes de abrir o controle, confirma a identidade e valida mapping, thresholds e durações. O protocolo usa 2 s de aquecimento, 5 s de repouso (1 s descartado pelo motor), 6 s para cada direção de cada stick e 25 s para cada trigger. Cada ciclo de trigger dura 5 s: 0,5 s em repouso, 2 s pressionando, 0,5 s no fundo e 2 s soltando; são 5 ciclos por gatilho. A duração total de captura é aproximadamente 81 s, além das instruções e contagens. Os thresholds e mínimos de amostra continuam sendo avaliados pelo motor de `measure`; a duração, sozinha, não garante qualidade.
+
+Os artefatos ficam em `~/.local/share/zonepad/captures/<UTC>-<device>/`: `capture.jsonl`, `capture.manifest.json`, `report.json` e `report.md`. O perfil, quando derivável e aceito, é gravado em `~/.config/zonepad/profiles`. O comando seguinte é `zonepad run --device event3 --profile <uuid> --mapping controle.json`.
+
+```bash
+zonepad calibrate --help
+zonepad calibrate --mapping controle.json --capture-dir ./captures --profiles-dir ./profiles
+```
+
+`Ctrl+C`, EOF e cancelamento preservam a captura parcial e retornam 130; desconexão retorna 3. Qualidade bloqueante sem retry seguro retorna 4 e não grava perfil. O backend evdev atual não identifica VID/PID, então manifesto usa `0x0000` para ambos quando desconhecidos. O protocolo não faz descoberta automática, hot-plug nem mapping automático; os detalhes e a política de retry estão em [`docs/specs/wizard-v1.md`](docs/specs/wizard-v1.md) e [`docs/adr/0005-wizard-cli-calibrate.md`](docs/adr/0005-wizard-cli-calibrate.md).
 
 Para a GUI, instale o extra opcional: `python -m pip install -e '.[gui]'` (ou `'.[dev,gui]'`) e execute `zonepad-gui`.
 
@@ -346,5 +365,7 @@ Copyright (c) 2026 ZonaPad contributors.
 ## Próximos passos
 
 1. Medir e versionar mappings por família de controle, USB/Bluetooth e firmware.
-2. Adicionar o wizard guiado de calibração sobre `zonepad measure` (gravação da captura e do manifesto).
+2. Validar thresholds e defaults com capturas reais de múltiplos controles.
 3. Implementar descoberta hot-plug e parsers específicos após capturas reais.
+4. Implementar a GUI PySide6 sobre o motor existente.
+5. Fortalecer CI com cobertura e validação de packaging.
