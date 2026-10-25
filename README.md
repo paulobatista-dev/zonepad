@@ -10,27 +10,138 @@ Aplicativo Python para calibrar controles (gamepads) de forma guiada e reproduz�
 - Python 3.15.x. O projeto fixa `3.15.0` em `.tool-versions` e declara
   `requires-python = ">=3.15,<3.16"`.
 
-## Ambiente de desenvolvimento
+## Desenvolvimento
 
-O projeto usa asdf para a versão do Python e virtualenv para o ambiente.
+O ambiente validado usa Python 3.15.0, fixado em `.tool-versions`. Instale essa
+versão com asdf, se necessário, e crie um ambiente isolado:
 
 ```bash
-asdf plugin add python          # apenas se o plugin ainda não existir
-asdf install python 3.15.0      # apenas se a versão ainda não estiver instalada
-asdf set python 3.15.0          # grava .tool-versions
+asdf plugin add python          # somente se o plugin ainda não existir
+asdf install python 3.15.0      # somente se a versão ainda não estiver instalada
 python --version                # Python 3.15.0
-
-python -m pip install --user virtualenv   # ou: pipx install virtualenv
-python -m virtualenv --python "$(asdf which python)" .venv
-. .venv/bin/activate
-python -m pip install -e '.[dev]'
 ```
 
-Alternativa sem virtualenv instalado: `python -m venv .venv`, ative e rode
-`python -m pip install -e '.[dev]'`.
+Com `pipx` disponível, instale `virtualenv` e crie o ambiente:
 
-O extra `dev` instala pytest, ruff, mypy e virtualenv. A CI usa Python 3.15.0
-e o mesmo extra.
+```bash
+pipx install virtualenv          # pré-requisito: pipx instalado
+virtualenv --python "$(asdf which python)" .venv
+. .venv/bin/activate
+python -m pip install -e '.[dev,gui]'
+```
+
+Comandos para ativar o ambiente em outro terminal:
+
+```bash
+. .venv/bin/activate
+```
+
+Se `pipx` não estiver disponível, escolha a biblioteca incluída no Python:
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install -e '.[dev,gui]'
+```
+
+Para trabalhar apenas na CLI, instale `-e '.[dev]'`; o extra
+`gui` instala somente PySide6 e `dev` instala pytest, pytest-cov, Ruff, mypy,
+virtualenv e build. O pacote runtime não depende dessas ferramentas.
+
+### Qualidade e testes
+
+```bash
+python -m ruff check .
+python -m mypy src/zonepad
+python -m pytest -q
+QT_QPA_PLATFORM=offscreen python -m pytest tests/test_gui.py -q
+python -m pytest --cov=zonepad --cov-report=term-missing --cov-report=xml -o addopts=""
+python -m pip check
+python scripts/sync_ai_assets.py --check
+```
+
+O relatório de cobertura é de linhas e gera `coverage.xml`; ainda não existe
+limite mínimo (`fail_under`). Os mesmos gates são executados pela CI nos jobs
+`check`, `test` e `package`. O job GUI importa PySide6, executa os testes com
+`QT_QPA_PLATFORM=offscreen` e falha se o relatório JUnit registrar skips.
+
+### Constraints e atualização
+
+`pyproject.toml` é a fonte de dependências e mantém faixas compatíveis para quem
+instala o pacote. `constraints/dev.txt` fixa a resolução aprovada para
+desenvolvimento/CI, inclusive dependências transitivas e backend do build; não
+é um segundo manifesto nem inclui a instalação editável do ZonaPad. A atualização
+dos pins é deliberada:
+
+```bash
+unset PIP_CONSTRAINT
+python -m pip install -e '.[dev,gui]'
+python -m pytest -q
+python -m pip check
+python -m pip freeze
+```
+
+Revise a saída, remova `zonepad`/`zonepad @ file://...`, pip e pacotes alheios ao
+conjunto aprovado, e atualize os pins exatos em `constraints/dev.txt`. O backend
+do build roda em ambiente isolado: registre também a versão de setuptools exibida
+por `python -m build` e mantenha esse pin no arquivo. Peça revisão do diff e
+confirme a instalação e os gates com:
+
+```bash
+PIP_CONSTRAINT=constraints/dev.txt python -m pip install -e '.[dev,gui]'
+python -m pip check
+python -m pytest -q
+PIP_CONSTRAINT=constraints/dev.txt python -m build
+```
+
+### Build e smoke de instalação
+
+```bash
+PIP_CONSTRAINT=constraints/dev.txt python -m build
+```
+
+Para validar instalação isolada do artefato, crie um venv descartável, instale
+nele o wheel e verifique CLI e GUI opcional:
+
+```bash
+python -m venv dist/smoke-venv
+dist/smoke-venv/bin/python -m pip install dist/zonepad-0.1.0-py3-none-any.whl
+dist/smoke-venv/bin/zonepad --help
+dist/smoke-venv/bin/zonepad devices --help
+dist/smoke-venv/bin/zonepad-gui --smoke  # retorna 2 e orienta instalar o extra gui
+dist/smoke-venv/bin/python -m pip install 'dist/zonepad-0.1.0-py3-none-any.whl[gui]'
+QT_QPA_PLATFORM=offscreen dist/smoke-venv/bin/zonepad-gui --smoke
+dist/smoke-venv/bin/python -m pip check
+```
+
+O teste GUI de smoke só inicializa e encerra a aplicação; não executa descoberta
+nem abre dispositivos. A instalação limpa requer acesso ao índice PyPI padrão.
+Os artefatos locais em `dist/` não são versionados.
+
+### Diagnóstico do ambiente
+
+- **PySide6 ausente:** instale o projeto com `python -m pip install -e '.[gui]'`
+  (ou `.[dev,gui]` para desenvolvimento). Sem GUI, `zonepad-gui` informa como
+  adicionar esse extra.
+- **Falha ao iniciar Qt em CI/servidor:** defina
+  `QT_QPA_PLATFORM=offscreen`; os testes e o smoke não precisam de display.
+- **PyPI indisponível ou sem rede:** a instalação e o build limpos precisam do
+  índice PyPI padrão. Use um ambiente que tenha acesso ao índice e registre
+  falhas de rede; o workflow não troca de índice automaticamente. Para preparar
+  um wheelhouse em uma máquina conectada, rode
+  `python -m pip download --dest wheelhouse -r constraints/dev.txt`, transfira a
+  pasta e instale com
+  `python -m pip install --no-index --find-links=wheelhouse -e '.[dev,gui]'`.
+  O build isolado também precisa dos arquivos de build no wheelhouse; valide-o
+  sem acesso à rede com:
+
+  ```bash
+  PIP_NO_INDEX=1 PIP_FIND_LINKS=wheelhouse \
+    PIP_CONSTRAINT=constraints/dev.txt python -m build
+  ```
+- **Acesso negado ao dispositivo:** o smoke de pacote e testes não precisam de
+  hardware. Para uso real, consulte a seção de permissões abaixo; acesso a
+  `/dev/input` e `/dev/uinput` depende das regras da distribuição.
 
 ## Instalação e uso
 
@@ -416,7 +527,8 @@ python -m mypy src/zonepad
 python scripts/sync_ai_assets.py --check
 ```
 
-A CI em `.github/workflows/ai-assets.yml` usa Python 3.15.0, instala `.[dev]` e roda esses quatro comandos.
+A CI em `.github/workflows/ai-assets.yml` usa Python 3.15.0 e separa lint/tipos/
+sincronização, testes completos com GUI e cobertura, e build/instalação limpa.
 
 ## Licença
 
@@ -430,4 +542,3 @@ Copyright (c) 2026 ZonaPad contributors.
 2. Validar thresholds e defaults com capturas reais de múltiplos controles.
 3. Validar o catálogo de famílias e a identidade em hardware real (smoke autorizado) e marcar `verified_on_hardware`.
 4. Revisar visualmente a GUI e sua acessibilidade em um desktop compatível.
-5. Fortalecer CI com cobertura e validação de packaging.

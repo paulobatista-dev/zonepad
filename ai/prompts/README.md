@@ -9,11 +9,10 @@ Os prompts não são espelhados pelo gerador `scripts/sync_ai_assets.py`. Eles v
 Todo prompt deve ser executado no checkout principal do repositório, **nunca em worktree**.
 
 1. `git status --porcelain` deve estar vazio.
-2. `git switch main`
-3. `git pull --ff-only` (ou atualize a `main` pelo remote configurado).
-4. `git switch -c <tipo>/<slug>`
-5. Confirme `git branch --show-current` e `git log --oneline main..HEAD` (deve estar vazio).
-6. Só então leia e execute o prompt.
+2. Leia o prompt e confirme se ele já está mergeado em `main`.
+3. No fluxo normal, atualize `main` com `git switch main` e `git pull --ff-only`, então crie `git switch -c <tipo>/<slug>`.
+4. Se o Prompt 06 ainda não estiver mergeado, use como base a branch que contém o prompt e registre a exceção. Confirme `git merge-base --is-ancestor main HEAD`; `git log --oneline main..HEAD` deve listar somente o commit que adiciona o Prompt 06.
+5. Confirme `git status --porcelain` vazio e a branch de trabalho esperada antes de editar.
 
 Não use `git worktree`. Uma branch por incremento. Não commite direto na `main`.
 
@@ -32,7 +31,7 @@ Ou use o fluxo:
 /flow-implement-feature
 ```
 
-Para o prompt 06, comece por `/flow-design-feature` antes de `/flow-implement-feature`.
+Para o prompt 06, a spec e o ADR já foram aprovados; continue com `/flow-implement-feature` e finalize com `/flow-review-calibration`.
 
 ### Codex
 
@@ -47,7 +46,7 @@ Ou use a skill de fluxo:
 $flow-implement-feature
 ```
 
-Para o prompt 06, comece por `$flow-design-feature` antes de `$flow-implement-feature`.
+Para o prompt 06, a spec e o ADR já foram aprovados; continue com `$flow-implement-feature` e finalize com `$flow-review-calibration`.
 
 ## Convenções
 
@@ -60,7 +59,7 @@ Para o prompt 06, comece por `$flow-design-feature` antes de `$flow-implement-fe
 
 ## Sequência planejada
 
-Os prompts 00 a 05 estão concluídos e mergeados em `main`. O prompt 06 é o último incremento planejado do roadmap atual. Execute cada incremento em branch própria criada a partir de `main`, no checkout principal e com toolchain 3.15.0.
+Os prompts 00 a 05 estão concluídos e mergeados em `main`. O prompt 06 é o último incremento planejado do roadmap atual. Execute cada incremento em branch própria no checkout principal e com toolchain 3.15.0. Quando o prompt ainda não estiver mergeado, aplique a exceção descrita no próprio prompt: a branch de trabalho deriva da branch que contém o prompt, `main` permanece ancestral e somente o commit do prompt aparece em `main..HEAD`.
 
 | Prompt | Incremento | Status |
 | --- | --- | --- |
@@ -70,11 +69,11 @@ Os prompts 00 a 05 estão concluídos e mergeados em `main`. O prompt 06 é o ú
 | `03-calibration-wizard.md` | Wizard CLI de calibração | Concluído — mergeado no PR #7 |
 | `04-device-discovery-mapping.md` | Descoberta de gamepads, identidade estável e mapeamento por família | Concluído — mergeado no PR #12 (spec `docs/specs/device-discovery-v1.md`, ADR `docs/adr/0006-descoberta-e-identidade-de-dispositivos.md`) |
 | `05-gui-pyside6.md` | GUI PySide6 sobre o núcleo de calibração | Concluído — mergeado no PR #14 (spec `docs/specs/gui-v1.md`, ADR `docs/adr/0008-gui-pyside6-como-adaptador.md`) |
-| `06-quality-release.md` | Qualidade, dependências, ambiente, build e release | Pronto para execução |
+| `06-quality-release.md` | Qualidade, dependências, ambiente, build e release | Em implementação — spec e ADR 0009 aprovados |
 
 O prompt 02 é pré-requisito do 03: ele entrega o motor de medição e a geração de perfil; o wizard apenas orquestra esse motor e a política de retry. O prompt 04 substitui a seleção manual de dispositivo e o mapping manual usados no 03. O prompt 05 é adaptador: não altera domínio, métricas, schema de perfil nem o wizard CLI.
 
-O prompt 06 fecha o roadmap: consolida dependências e extras, documenta o ambiente de desenvolvimento, faz a CI executar os testes de GUI que hoje são pulados, valida o conteúdo do wheel/sdist e prova a instalação limpa. Ele não adiciona features nem altera domínio, métricas, schema de perfil ou GUI. A spec é `docs/specs/dev-environment-v1.md` e o ADR é `docs/adr/0009-*`, ambos aprovados antes da implementação. A GUI continua exigindo o extra opcional `gui` (`python -m pip install -e '.[dev,gui]'`); a CLI e o domínio funcionam sem PySide6.
+O prompt 06 fecha o roadmap: consolida dependências e extras, documenta o ambiente de desenvolvimento, faz a CI executar os testes de GUI que hoje são pulados, valida o conteúdo do wheel/sdist e prova a instalação limpa. Ele não adiciona features nem altera domínio, métricas, schema de perfil ou GUI. A spec `docs/specs/dev-environment-v1.md` e o ADR `docs/adr/0009-*` foram aprovados antes da implementação. A GUI continua exigindo o extra opcional `gui` (`python -m pip install -e '.[dev,gui]'`); a CLI e o domínio funcionam sem PySide6.
 
 ## Regra de ouro
 
