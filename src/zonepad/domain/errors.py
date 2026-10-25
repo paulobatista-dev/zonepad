@@ -9,6 +9,10 @@ class InvalidProfileError(ZonaPadError, ValueError):
     """Raised when a profile is malformed or outside supported limits."""
 
 
+class InvalidMappingError(ZonaPadError, ValueError):
+    """Raised when a device mapping is malformed or unsupported."""
+
+
 class DeviceNotFoundError(ZonaPadError):
     """Raised when a requested device is not available."""
 

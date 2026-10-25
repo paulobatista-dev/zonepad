@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from .input import NormalizedFrame, RawFrame
@@ -53,8 +54,8 @@ def normalize_stick(
 
 def normalize_frame(
     frame: RawFrame,
-    axis_ranges: dict[str, AxisRange],
-    trigger_ranges: dict[str, TriggerRange],
+    axis_ranges: Mapping[str, AxisRange],
+    trigger_ranges: Mapping[str, TriggerRange],
 ) -> NormalizedFrame:
     missing_axes = set(frame.axes) - set(axis_ranges)
     missing_triggers = set(frame.triggers) - set(trigger_ranges)

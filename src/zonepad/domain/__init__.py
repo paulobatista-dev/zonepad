@@ -5,7 +5,13 @@ from .calibration import (
     apply_trigger_calibration,
 )
 from .device import DeviceInfo
-from .errors import DeviceDisconnectedError, DeviceNotFoundError, InvalidProfileError, ZonaPadError
+from .errors import (
+    DeviceDisconnectedError,
+    DeviceNotFoundError,
+    InvalidMappingError,
+    InvalidProfileError,
+    ZonaPadError,
+)
 from .input import CalibratedFrame, NormalizedFrame, RawFrame
 from .normalization import (
     AxisRange,
@@ -36,6 +42,7 @@ __all__ = [
     "DeviceInfo",
     "DeviceNotFoundError",
     "InvalidProfileError",
+    "InvalidMappingError",
     "NormalizedFrame",
     "RawFrame",
     "StickCalibration",

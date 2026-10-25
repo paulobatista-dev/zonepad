@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Protocol
 
 from zonepad.domain.device import DeviceInfo
@@ -14,6 +14,9 @@ class DeviceSession(Protocol):
     def device_info(self) -> DeviceInfo: ...
 
     def read(self, timeout_s: float) -> RawFrame | None: ...
+
+    @property
+    def normalization_config(self) -> NormalizationConfig: ...
 
     def close(self) -> None: ...
 
@@ -38,7 +41,7 @@ class FramePublisher(Protocol):
 
 class NormalizationConfig(Protocol):
     @property
-    def axes(self) -> dict[str, AxisRange]: ...
+    def axes(self) -> Mapping[str, AxisRange]: ...
 
     @property
-    def triggers(self) -> dict[str, TriggerRange]: ...
+    def triggers(self) -> Mapping[str, TriggerRange]: ...

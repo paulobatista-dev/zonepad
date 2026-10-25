@@ -27,6 +27,7 @@ class LinuxUinputPublisher:
     EV_ABS = 3
     SYN_REPORT = 0
     ABS_CODES = {"lx": 0, "ly": 1, "rx": 3, "ry": 4, "lt": 2, "rt": 5}
+    ABS_MINIMUMS = {2: 0, 5: 0}
     BUTTON_CODES = {
         "button_south": 304,
         "button_east": 305,
@@ -66,6 +67,8 @@ class LinuxUinputPublisher:
         header = struct.pack("<80sHHHHH2x", name, 0x03, 0x1234, 0x0001, 1, 0)
         absmax = [32767] * 64
         absmin = [-32767] * 64
+        for code, minimum in self.ABS_MINIMUMS.items():
+            absmin[code] = minimum
         absfuzz = [0] * 64
         absflat = [0] * 64
         os.write(

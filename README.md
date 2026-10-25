@@ -11,11 +11,53 @@ python -m pip install -e .
 zonepad list
 zonepad profiles --directory ~/.config/zonepad/profiles
 zonepad replay captura.jsonl
+zonepad run --device event3 --profile <uuid> --mapping controle.json --duration 10
 ```
 
 O backend Linux lê `/dev/input/event*` (evdev), aplica o perfil em tempo real e publica eventos em um controle virtual por `/dev/uinput`. O acesso ao dispositivo `uinput` depende das permissões da distribuição. Nenhum acesso a hardware é executado nos testes.
 
-O runtime programático é exposto por `zonepad.application.runtime.run_saved_profile`; a CLI inicial cobre descoberta, perfis e replay. A composição de ranges medidos por controle e o wizard completo de calibração são os próximos incrementos da interface.
+O runtime programático é exposto por `zonepad.application.runtime.build_runtime`; a CLI cobre descoberta, perfis, replay e execução de perfil salvo. O comando `run` aplica o perfil somente ao controle virtual criado pelo ZonaPad.
+
+### Executar um perfil salvo
+
+`zonepad run` requer um mapping JSON. Embora `--mapping` permaneça opcional para permitir uma mensagem de erro mais clara, o comando encerra com código 2 se ele faltar: o ZonaPad não infere ranges, centro de stick ou repouso de trigger.
+
+```bash
+zonepad run \
+  --device event3 \
+  --profile 550e8400-e29b-41d4-a716-446655440000 \
+  --mapping controle.json \
+  --profiles-dir ~/.config/zonepad/profiles \
+  --duration 10
+```
+
+O mapping v1 é estrito: campos desconhecidos, códigos repetidos, valores não inteiros e ranges inválidos são rejeitados. Ele define os códigos evdev e os valores raw medidos; os quatro botões faciais são opcionais.
+
+```json
+{
+  "schema_version": 1,
+  "axes": {
+    "lx": {"code": 0, "minimum": -32768, "center": 0, "maximum": 32767},
+    "ly": {"code": 1, "minimum": -32768, "center": 0, "maximum": 32767},
+    "rx": {"code": 3, "minimum": -32768, "center": 0, "maximum": 32767},
+    "ry": {"code": 4, "minimum": -32768, "center": 0, "maximum": 32767}
+  },
+  "triggers": {
+    "lt": {"code": 2, "rest": 0, "maximum": 255},
+    "rt": {"code": 5, "rest": 0, "maximum": 255}
+  },
+  "buttons": {
+    "304": "button_south",
+    "305": "button_east",
+    "307": "button_north",
+    "308": "button_west"
+  }
+}
+```
+
+O backend acumula mudanças evdev até `SYN_REPORT`; portanto cada frame publicado representa um pacote completo. Botões físicos que não aparecem no mapping são ignorados. Para acessar `/dev/input/event*` e `/dev/uinput`, configure as permissões da distribuição via grupo apropriado ou regra udev reversível; não execute o aplicativo como root. Falta de permissão em `/dev/uinput` retorna código 3 com essa orientação.
+
+Os frames evdev recebem timestamp do relógio monotônico do host no momento de `SYN_REPORT`; isso mantém a ordem temporal mesmo quando o relógio civil é ajustado. A origem é uma aproximação de leitura, não o timestamp do kernel.
 
 Para a GUI, instale o extra opcional: `python -m pip install -e '.[gui]'` e execute `zonepad-gui`.
 
@@ -208,6 +250,6 @@ Copyright (c) 2026 ZonaPad contributors.
 
 ## Próximos passos
 
-1. Completar o registro/mapeamento de dispositivos uinput por família de controle.
+1. Medir e versionar mappings por família de controle, USB/Bluetooth e firmware.
 2. Adicionar métricas guiadas de ruído, circularidade, linearidade e histerese.
 3. Implementar descoberta hot-plug e parsers específicos após capturas reais.
