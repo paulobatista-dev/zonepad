@@ -4,6 +4,19 @@ Esta pasta guarda prompts de trabalho para implementar o ZonaPad com Claude Code
 
 Os prompts não são espelhados pelo gerador `scripts/sync_ai_assets.py`. Eles vivem apenas em `ai/prompts/` e podem ser referenciados por caminho.
 
+## Contrato de início de trabalho
+
+Todo prompt deve ser executado no checkout principal do repositório, **nunca em worktree**.
+
+1. `git status --porcelain` deve estar vazio.
+2. `git switch main`
+3. `git pull --ff-only` (ou atualize a `main` pelo remote configurado).
+4. `git switch -c <tipo>/<slug>`
+5. Confirme `git branch --show-current` e `git log --oneline main..HEAD` (deve estar vazio).
+6. Só então leia e execute o prompt.
+
+Não use `git worktree`. Uma branch por incremento. Não commite direto na `main`.
+
 ## Como usar
 
 ### Claude Code
@@ -47,14 +60,14 @@ Para o prompt 03, comece por `$flow-design-feature` antes de `$flow-implement-fe
 
 ## Sequência planejada
 
-Os prompts 00, 01 e 02 estão concluídos e mergeados em `main`. O prompt 03 está implementado e aguardando merge. Execute cada incremento em branch própria criada a partir de `main`, com worktree limpo e toolchain 3.15.0.
+Os prompts 00, 01, 02 e 03 estão concluídos e mergeados em `main`. Execute cada incremento em branch própria criada a partir de `main`, no checkout principal e com toolchain 3.15.0.
 
 | Prompt | Incremento | Status |
 | --- | --- | --- |
 | `00-toolchain-python-315-asdf-virtualenv.md` | Python 3.15.0, asdf, virtualenv, pyproject e CI | Concluído — mergeado em `main` |
 | `01-runtime-cli-end-to-end.md` | Comando `zonepad run` com evdev → perfil → uinput | Concluído — mergeado em `main` |
 | `02-calibration-metrics.md` | Métricas, relatório e profile builder | Concluído — mergeado no PR #5 (spec `docs/specs/metrics-v1.md`, ADR `docs/adr/0004-metricas-relatorio-separado-e-perfil-v1.md`) |
-| `03-calibration-wizard.md` | Wizard CLI de calibração | Implementado — aguardando merge |
+| `03-calibration-wizard.md` | Wizard CLI de calibração | Concluído — mergeado no PR #7 |
 | `04-device-discovery-mapping.md` | Descoberta e mapeamento por família | A criar |
 | `05-gui-pyside6.md` | GUI funcional | A criar |
 | `06-quality-release.md` | Ruff/mypy/cobertura/packaging | A criar |

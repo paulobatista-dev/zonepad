@@ -35,7 +35,7 @@ Este incremento **não** entrega a experiência guiada de calibração. Ele entr
 
 ## Contexto verificado (2026-10-24)
 
-Revalide no checkout limpo. Os gates da seção **Validação** são a fonte de verdade.
+Revalide no checkout principal, com working tree limpo. Os gates da seção **Validação** são a fonte de verdade.
 
 | Verificação | Resultado |
 | --- | --- |
@@ -50,12 +50,15 @@ Revalide no checkout limpo. Os gates da seção **Validação** são a fonte de 
 
 ## Pré-condições
 
-1. Este prompt deve estar mergeado em `main` antes da implementação. Enquanto não estiver, execute em worktree a partir da branch que contém o prompt e registre a exceção no relatório.
-2. Crie um worktree/checkout limpo a partir de `main` e a branch `feat/calibration-metrics`:
+1. Este prompt deve estar mergeado em `main` antes da implementação. Enquanto não estiver, execute no checkout principal a partir da branch que contém o prompt e registre a exceção no relatório.
+2. No checkout principal, crie a branch `feat/calibration-metrics` a partir da `main`:
 
 ```bash
-git worktree add /tmp/opencode/zonepad-02 -b feat/calibration-metrics main
-cd /tmp/opencode/zonepad-02
+cd /home/costa/Workspace/zonepad
+git status --porcelain        # deve estar vazio
+git switch main
+git pull --ff-only
+git switch -c feat/calibration-metrics
 ```
 
 3. Toolchain obrigatória:
@@ -84,11 +87,11 @@ git branch --show-current     # feat/calibration-metrics
 git log --oneline main..HEAD  # vazio no início
 ```
 
-Se qualquer gate falhar, pare e peça um checkout limpo.
+Se qualquer gate falhar, pare e peça um checkout principal limpo.
 
 6. Regras de segurança e git:
 
-- Trabalhe apenas neste worktree. Não edite `/home/costa/Workspace/zonepad`.
+- Trabalhe no checkout principal. Não use `git worktree` e não edite arquivos gerados (`AGENTS.md`, `CLAUDE.md`, `.opencode/`, `.claude/`, `.agents/`, `.codex/`).
 - Não toque na branch `feat/runtime-cli-end-to-end`.
 - Não use `git stash`, `git reset`, `git checkout --`, `git restore`, `git rebase`, `git push --force` nem `sudo`.
 - Commit local na branch de trabalho é permitido; push, PR, merge e rebase só com pedido explícito do usuário.
@@ -111,7 +114,7 @@ Handoff mínimo entre agentes: objetivo, contexto, restrições, arquivos releva
 
 | # | Etapa | Executor | Revisor/apoio | Fluxo/skill | Saída | Gate |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Preflight, branch e baseline | `python-engineer` | Claude principal | `/flow-implement-feature` (passos 1–2) | worktree, `feat/calibration-metrics`, baseline pytest | tree limpo; 3.15.0; pytest verde |
+| 1 | Preflight, branch e baseline | `python-engineer` | Claude principal | `/flow-implement-feature` (passos 1–2) | branch `feat/calibration-metrics`, baseline pytest | tree limpo; 3.15.0; pytest verde |
 | 2 | Spec de métricas e protocolo | `controller-hardware` | `python-engineer` | `/flow-design-feature` + `calibration-metrics`, `calibration-domain` | `docs/specs/metrics-v1.md` | unidades, janelas, fórmulas, mínimos de amostra e critérios aprovados pelo usuário |
 | 3 | Decisão de schema e formato do relatório | `controller-hardware` + `python-engineer` | `prompt-engineer` | `/flow-design-feature` | ADR (próximo número livre, hoje `0004`) | perfil v1 intacto; relatório com versão própria; migração explicitada se houver v2 |
 | 4 | Domínio de métricas | `python-engineer` | `controller-hardware` (fórmulas) | `/flow-implement-feature` (passo 3) + `calibration-metrics` | `src/zonepad/domain/metrics.py` + testes | domínio puro, sem IO; testes de caso conhecido verdes |
