@@ -22,6 +22,7 @@ from zonepad.application.calibrate import (
     WizardState,
     step,
 )
+from zonepad.application.calibration_plan import calibration_plans, retry_targets
 from zonepad.application.discovery import ResolvedDevice
 from zonepad.application.mapping_resolution import MappingSource
 from zonepad.application.measure import MeasureOutcome, save_profile
@@ -42,7 +43,6 @@ from zonepad.domain.errors import (
     MeasurementInputError,
     UnsupportedPlatformError,
 )
-from zonepad.domain.protocol import Segment
 from zonepad.infrastructure.capture_writer import CaptureWriter, create_session_directory
 from zonepad.infrastructure.clock import SystemClock
 from zonepad.infrastructure.evdev import LinuxEvdevBackend
@@ -73,115 +73,6 @@ from zonepad.interface.terminal_console import CalibrationCancelled, TerminalCon
 
 class _QualityBlocked(Exception):
     pass
-
-
-def _plans(warmup: float, rest: float, circle: float, trigger: float) -> tuple[SegmentPlan, ...]:
-    return (
-        SegmentPlan(
-            ("rest",),
-            "rest",
-            rest,
-            "Mãos fora do controle; deixe os sticks e gatilhos em repouso.",
-            1_000_000_000,
-        ),
-        SegmentPlan(
-            ("circle", "left", "cw"),
-            "circle",
-            circle,
-            "Stick esquerdo na borda: dê 3 voltas horárias e passe do ponto inicial.",
-            stick="left",
-            direction="cw",
-        ),
-        SegmentPlan(
-            ("circle", "left", "ccw"),
-            "circle",
-            circle,
-            "Stick esquerdo na borda: dê 3 voltas anti-horárias e passe do ponto inicial.",
-            stick="left",
-            direction="ccw",
-        ),
-        SegmentPlan(
-            ("circle", "right", "cw"),
-            "circle",
-            circle,
-            "Stick direito na borda: dê 3 voltas horárias e passe do ponto inicial.",
-            stick="right",
-            direction="cw",
-        ),
-        SegmentPlan(
-            ("circle", "right", "ccw"),
-            "circle",
-            circle,
-            "Stick direito na borda: dê 3 voltas anti-horárias e passe do ponto inicial.",
-            stick="right",
-            direction="ccw",
-        ),
-        SegmentPlan(
-            ("trigger", "left"),
-            "trigger_sweep",
-            trigger,
-            "Gatilho esquerdo: em cada ciclo, fique 0,5 s em repouso, pressione em 2 s, "
-            "mantenha no fundo por 0,5 s e solte em 2 s; repita 5 vezes.",
-            trigger="left",
-        ),
-        SegmentPlan(
-            ("trigger", "right"),
-            "trigger_sweep",
-            trigger,
-            "Gatilho direito: em cada ciclo, fique 0,5 s em repouso, pressione em 2 s, "
-            "mantenha no fundo por 0,5 s e solte em 2 s; repita 5 vezes.",
-            trigger="right",
-        ),
-    )
-
-
-def _plan_segment(plan: SegmentPlan) -> Segment:
-    return Segment(plan.kind, 1, 2, plan.warmup_ns, plan.stick, plan.direction, plan.trigger)
-
-
-def _retry_targets(
-    outcome: MeasureOutcome, existing: set[tuple[str, ...]]
-) -> tuple[tuple[str, ...], ...] | None:
-    blockers = [finding for finding in outcome.metrics.findings if finding.blocks_strict]
-    if not blockers:
-        return None
-    targets: set[tuple[str, ...]] = set()
-    for finding in blockers:
-        metric = finding.metric or ""
-        if finding.code in {"REST_TOO_SHORT", "HIGH_DRIFT", "HIGH_NOISE"}:
-            target: tuple[str, ...] = ("rest",)
-            if target not in existing:
-                return None
-        elif finding.code in {
-            "INSUFFICIENT_CIRCLE_POINTS",
-            "INSUFFICIENT_CIRCLE_LAPS",
-            "CIRCLE_DIRECTION_INCONSISTENT",
-        }:
-            bits = metric.split(".")
-            if len(bits) >= 3 and bits[0] == "sticks" and bits[1] in {"left", "right"}:
-                directions = (
-                    [bits[4]]
-                    if len(bits) > 4 and bits[3] == "valid_laps" and bits[4] in {"cw", "ccw"}
-                    else ["cw", "ccw"]
-                )
-                for direction in directions:
-                    target = ("circle", bits[1], direction)
-                    if target not in existing:
-                        return None
-                    targets.add(target)
-                continue
-            return None
-        elif finding.code == "INSUFFICIENT_TRIGGER_CYCLES":
-            bits = metric.split(".")
-            if len(bits) < 2 or bits[0] != "triggers" or bits[1] not in {"left", "right"}:
-                return None
-            target = ("trigger", bits[1])
-            if target not in existing:
-                return None
-        else:
-            return None
-        targets.add(target)
-    return tuple(sorted(targets)) if targets else None
 
 
 def _write_reports(directory: Path, outcome: MeasureOutcome) -> tuple[Path, Path]:
@@ -242,7 +133,7 @@ def run_calibrate(
                 "warmup interno e repouso efetivo"
             )
             return 2
-        plans = _plans(warmup, rest, circle, trigger)
+        plans = calibration_plans(warmup, rest, circle, trigger)
     except (InvalidMappingError, MeasurementInputError, OSError, ValueError) as exc:
         terminal.say(f"erro: configuração inválida: {exc}")
         return 2
@@ -463,7 +354,7 @@ def run_calibrate(
                 outcome.report["profile_summary"]["profile_id"] = None
             report_json, report_markdown = _write_reports(Path(artifacts.directory), outcome)
             review_ready = True
-            targets = _retry_targets(outcome, existing)
+            targets = retry_targets(outcome, existing)
             if "review" not in dispatch(MeasurementCompleted()):
                 raise RuntimeError("state machine não entrou em review")
             review_effect = dispatch(

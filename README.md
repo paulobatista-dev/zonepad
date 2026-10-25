@@ -229,7 +229,9 @@ zonepad calibrate --mapping controle.json --capture-dir ./captures --profiles-di
 
 `Ctrl+C`, EOF e cancelamento preservam a captura parcial e retornam 130; desconexão retorna 3. Qualidade bloqueante sem retry seguro retorna 4 e não grava perfil. O backend evdev atual não identifica VID/PID, então manifesto usa `0x0000` para ambos quando desconhecidos. O wizard usa um único snapshot de descoberta na tela de escolha (sem hot-plug ao vivo); os detalhes e a política de retry estão em [`docs/specs/wizard-v1.md`](docs/specs/wizard-v1.md) e [`docs/adr/0005-wizard-cli-calibrate.md`](docs/adr/0005-wizard-cli-calibrate.md).
 
-Para a GUI, instale o extra opcional: `python -m pip install -e '.[gui]'` (ou `'.[dev,gui]'`) e execute `zonepad-gui`.
+Para a GUI, instale o extra opcional: `python -m pip install -e '.[gui]'` (ou `'.[dev,gui]'`) e execute `zonepad-gui`. A janela oferece os painéis Dispositivos, Monitor, Calibração e Perfis. Valide o mapping do dispositivo antes de iniciar o monitor ou o wizard. O monitor apresenta sticks em `[-1, 1]`, gatilhos em `[0, 1]` e estados dos botões disponíveis no mapping. A captura e a avaliação usam o protocolo, as métricas e os perfis do fluxo `zonepad calibrate`; a inspeção de perfis é somente leitura.
+
+`zonepad-gui --help` mostra opções de terminal e `zonepad-gui --smoke` monta a janela e encerra. Para executar o smoke sem display, use `QT_QPA_PLATFORM=offscreen zonepad-gui --smoke`. A interface v1 suporta Linux e um dispositivo por vez.
 
 ## Arquitetura
 
@@ -427,5 +429,5 @@ Copyright (c) 2026 ZonaPad contributors.
 1. Gravar mapping não provisório a partir da calibração medida.
 2. Validar thresholds e defaults com capturas reais de múltiplos controles.
 3. Validar o catálogo de famílias e a identidade em hardware real (smoke autorizado) e marcar `verified_on_hardware`.
-4. Implementar a GUI PySide6 sobre o motor existente.
+4. Revisar visualmente a GUI e sua acessibilidade em um desktop compatível.
 5. Fortalecer CI com cobertura e validação de packaging.

@@ -69,12 +69,12 @@ Os prompts 00 a 04 estão concluídos e mergeados em `main`. Execute cada increm
 | `02-calibration-metrics.md` | Métricas, relatório e profile builder | Concluído — mergeado no PR #5 (spec `docs/specs/metrics-v1.md`, ADR `docs/adr/0004-metricas-relatorio-separado-e-perfil-v1.md`) |
 | `03-calibration-wizard.md` | Wizard CLI de calibração | Concluído — mergeado no PR #7 |
 | `04-device-discovery-mapping.md` | Descoberta de gamepads, identidade estável e mapeamento por família | Concluído — mergeado no PR #12 (spec `docs/specs/device-discovery-v1.md`, ADR `docs/adr/0006-descoberta-e-identidade-de-dispositivos.md`) |
-| `05-gui-pyside6.md` | GUI PySide6 sobre o núcleo de calibração | Pronto para execução |
+| `05-gui-pyside6.md` | GUI PySide6 sobre o núcleo de calibração | Em implementação na branch `feat/gui-pyside6`; spec e ADR aprovados, revisão final em andamento |
 | `06-quality-release.md` | Ruff/mypy/cobertura/packaging | A criar |
 
 O prompt 02 é pré-requisito do 03: ele entrega o motor de medição e a geração de perfil; o wizard apenas orquestra esse motor e a política de retry. O prompt 04 substitui a seleção manual de dispositivo e o mapping manual usados no 03. O prompt 05 é adaptador: não altera domínio, métricas, schema de perfil nem o wizard CLI.
 
-Para executar o prompt 05, crie a branch `feat/gui-pyside6` a partir da `main` e comece por `/flow-design-feature` (`$flow-design-feature` no Codex). A spec `docs/specs/gui-v1.md` e o ADR 0008 precisam de aprovação do usuário antes de qualquer código de produção. A GUI exige o extra opcional `gui` (`python -m pip install -e '.[dev,gui]'`); a CLI e o domínio continuam funcionando sem PySide6.
+O prompt 05 está em execução na branch `feat/gui-pyside6`. A spec `docs/specs/gui-v1.md` foi aprovada e o ADR 0008 foi aceito antes da implementação. O incremento implementa a GUI como adaptador do núcleo existente; a revisão final e a abertura do PR seguem pendentes. A GUI exige o extra opcional `gui` (`python -m pip install -e '.[dev,gui]'`); a CLI e o domínio continuam funcionando sem PySide6.
 
 ## Regra de ouro
 
