@@ -32,7 +32,7 @@ on:
   workflow_dispatch:
 
 env:
-  PIP_CONSTRAINT: constraints/dev.txt
+  PIP_CONSTRAINT: ${{ github.workspace }}/constraints/dev.txt
 
 jobs:
   check:
