@@ -151,3 +151,48 @@ def draft_rules() -> DraftRules:
         non_positional_drivers=NON_POSITIONAL_DRIVERS,
         min_stick_span=2,
     )
+
+
+# Presentation names (input-event-codes.h); used only in messages.
+_ABS_NAMES = {
+    0x00: "ABS_X",
+    0x01: "ABS_Y",
+    0x02: "ABS_Z",
+    0x03: "ABS_RX",
+    0x04: "ABS_RY",
+    0x05: "ABS_RZ",
+    0x06: "ABS_THROTTLE",
+    0x07: "ABS_RUDDER",
+    0x08: "ABS_WHEEL",
+    0x09: "ABS_GAS",
+    0x0A: "ABS_BRAKE",
+    0x10: "ABS_HAT0X",
+    0x11: "ABS_HAT0Y",
+    0x12: "ABS_HAT1X",
+    0x13: "ABS_HAT1Y",
+    0x14: "ABS_HAT2X",
+    0x15: "ABS_HAT2Y",
+    0x16: "ABS_HAT3X",
+    0x17: "ABS_HAT3Y",
+    0x18: "ABS_PRESSURE",
+    0x19: "ABS_DISTANCE",
+    0x1A: "ABS_TILT_X",
+    0x1B: "ABS_TILT_Y",
+    0x1C: "ABS_TOOL_WIDTH",
+    0x20: "ABS_VOLUME",
+    0x21: "ABS_PROFILE",
+    0x28: "ABS_MISC",
+    0x2F: "ABS_MT_SLOT",
+    0x35: "ABS_MT_POSITION_X",
+    0x36: "ABS_MT_POSITION_Y",
+    0x39: "ABS_MT_TRACKING_ID",
+}
+_KEY_NAMES = {BTN_TL2: "BTN_TL2", BTN_TR2: "BTN_TR2"}
+
+
+def abs_code_name(code: int) -> str:
+    return _ABS_NAMES.get(code, f"ABS_0x{code:02x}")
+
+
+def key_code_name(code: int) -> str:
+    return _KEY_NAMES.get(code, f"KEY_0x{code:03x}")

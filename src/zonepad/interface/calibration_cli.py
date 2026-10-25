@@ -22,6 +22,8 @@ from zonepad.application.calibrate import (
     WizardState,
     step,
 )
+from zonepad.application.discovery import ResolvedDevice
+from zonepad.application.mapping_resolution import MappingSource
 from zonepad.application.measure import MeasureOutcome, save_profile
 from zonepad.application.ports import (
     CaptureArtifacts,
@@ -32,6 +34,7 @@ from zonepad.application.ports import (
     DeviceSession,
 )
 from zonepad.application.report import dumps_report, render_markdown
+from zonepad.domain.device import DeviceInfo
 from zonepad.domain.errors import (
     DeviceDisconnectedError,
     DeviceNotFoundError,
@@ -49,6 +52,22 @@ from zonepad.infrastructure.live_capture import LiveCaptureSession
 from zonepad.infrastructure.manifest_reader import load_metrics_config
 from zonepad.infrastructure.mapping import DeviceMapping, load_device_mapping
 from zonepad.infrastructure.measure_runner import MeasureRunner
+from zonepad.interface.device_cli import (
+    DEFAULT_DEVICES_DIR,
+    DEFAULT_SYSFS_ROOT,
+    EVENT_NODE,
+    CliDependencies,
+    CliExit,
+    DiscoveryScanner,
+    check_catalog_ranges,
+    connection_label,
+    discover,
+    gamepad_label,
+    mapping_origin_label,
+    resolve_reference,
+    resolve_session_mapping,
+    verify_after_open,
+)
 from zonepad.interface.terminal_console import CalibrationCancelled, TerminalConsole
 
 
@@ -181,8 +200,15 @@ def run_calibrate(
     now: Callable[[], datetime] | None = None,
     profile_id_factory: Callable[[], str] | None = None,
     capture_factory: Callable[[DeviceSession, CaptureWriter, Clock], CaptureSession] | None = None,
+    dependencies: CliDependencies | None = None,
 ) -> int:
-    """Interactive CLI workflow; dependencies are injectable for deterministic tests."""
+    """Interactive CLI workflow; dependencies are injectable for deterministic tests.
+
+    ``--device eventN`` with ``--mapping`` keeps the legacy order (backend before
+    selection).  Otherwise the device is discovered in ``select_device``, the
+    mapping is resolved in ``validate_mapping`` (RF8) and only then the backend is
+    built; capture artifacts keep using ``eventN``.
+    """
     terminal = console or TerminalConsole()
     timer = clock or SystemClock()
     wall_now = now or (lambda: datetime.now(UTC))
@@ -190,9 +216,15 @@ def run_calibrate(
     if not terminal.is_interactive:
         terminal.say("erro: calibrate exige um terminal interativo (TTY); --help não exige TTY")
         return 2
+    deps = dependencies or CliDependencies()
+    sysfs_root = Path(getattr(args, "sysfs_root", None) or DEFAULT_SYSFS_ROOT)
+    devices_dir = Path(getattr(args, "devices_dir", None) or DEFAULT_DEVICES_DIR)
+    legacy = bool(args.mapping and args.device and EVENT_NODE.fullmatch(args.device))
     try:
-        mapping_path = Path(args.mapping).expanduser()
-        mapping = load_device_mapping(mapping_path)
+        mapping_path: Path | None = Path(args.mapping).expanduser() if args.mapping else None
+        mapping: DeviceMapping | None = (
+            load_device_mapping(mapping_path) if mapping_path is not None else None
+        )
         config = load_metrics_config(
             Path(args.thresholds).expanduser() if args.thresholds else None
         )
@@ -256,31 +288,55 @@ def run_calibrate(
         terminal.say("Bem-vindo ao wizard de calibração ZonaPad.")
         if "select_device" not in dispatch(Continue()):
             raise RuntimeError("state machine não solicitou seleção do dispositivo")
-        backend = backend_builder(mapping)
-        if args.device:
+        resolved: ResolvedDevice | None = None
+        scanner: DiscoveryScanner | None = None
+        if legacy:
+            if mapping is None or mapping_path is None:  # guarded by ``legacy``
+                raise RuntimeError("legacy path requires --mapping")
+            active_mapping, active_mapping_path = mapping, mapping_path
+            backend = backend_builder(active_mapping)
             devices = tuple(backend.list_devices())
-            device = next((item for item in devices if item.device_id == args.device), None)
-            if device is None:
+            legacy_device = next((item for item in devices if item.device_id == args.device), None)
+            if legacy_device is None:
                 terminal.say(f"erro: dispositivo {args.device!r} não está disponível")
                 return 3
+            device = legacy_device
+            if "validate_mapping" not in dispatch(Continue()):
+                raise RuntimeError("state machine não solicitou validação do mapping")
+            if "confirm_device" not in dispatch(Continue()):
+                raise RuntimeError("state machine não solicitou confirmação do dispositivo")
+            terminal.say(f"Dispositivo: {device.name} ({device.device_id})")
+            terminal.say(f"Mapping: {active_mapping_path}")
+            run_reference = args.device
+            summary_mapping: Path | None = active_mapping_path
         else:
-            devices = tuple(backend.list_devices())
-            if not devices:
-                terminal.say("erro: nenhum dispositivo evdev disponível")
-                return 3
-            selected = terminal.ask_choice(
-                "Escolha o controle", [f"{d.name} ({d.device_id})" for d in devices]
+            selection = _select_discovered(args, deps, terminal, sysfs_root)
+            if isinstance(selection, int):
+                return selection
+            resolved, scanner = selection
+            if "validate_mapping" not in dispatch(Continue()):
+                raise RuntimeError("state machine não solicitou validação do mapping")
+            active_mapping, active_mapping_path, mapping_ref = resolve_session_mapping(
+                resolved, mapping_path, deps.store(devices_dir)
             )
-            if selected is None:
-                return 130
-            device = devices[selected]
-        if "validate_mapping" not in dispatch(Continue()):
-            raise RuntimeError("state machine não solicitou validação do mapping")
-        if "confirm_device" not in dispatch(Continue()):
-            raise RuntimeError("state machine não solicitou confirmação do dispositivo")
-        mapping_label = str(mapping_path)
-        terminal.say(f"Dispositivo: {device.name} ({device.device_id})")
-        terminal.say(f"Mapping: {mapping_label}")
+            check_catalog_ranges(resolved, mapping_ref, active_mapping, deps.absinfo_reader())
+            backend = backend_builder(active_mapping)
+            node = resolved.event_node
+            device = DeviceInfo(node, resolved.device.observed.name or node)
+            run_reference = resolved.identity.stable_id
+            summary_mapping = (
+                active_mapping_path if mapping_ref.source is MappingSource.EXPLICIT else None
+            )
+            if "confirm_device" not in dispatch(Continue()):
+                raise RuntimeError("state machine não solicitou confirmação do dispositivo")
+            terminal.say(f"Dispositivo: {gamepad_label(resolved.device)}")
+            terminal.say(f"Conexão: {connection_label(resolved.identity.connection)}")
+            terminal.say(f"Mapping: {mapping_origin_label(mapping_ref)}")
+            if mapping_ref.status in {"provisional", "edited"}:
+                terminal.say(
+                    "Aviso: o mapping salvo é provisório ou foi editado; esta calibração mede "
+                    "o repouso real."
+                )
         if not terminal.ask_confirm("A identidade e o mapping estão corretos?", default=False):
             return 130
         terminal.say(
@@ -291,12 +347,18 @@ def run_calibrate(
         if "open_capture" not in capture_effects:
             raise RuntimeError("state machine não solicitou abertura da captura")
         opened_session = backend.open(device.device_id)
+        if resolved is not None and scanner is not None:
+            verify_after_open(scanner, resolved)
         stamp = wall_now().astimezone(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
         directory = create_session_directory(Path(args.capture_dir), device.device_id, stamp)
         writer = CaptureWriter(directory, opened_session.device_info)
         capture_builder = capture_factory or LiveCaptureSession
         capture_session = capture_builder(opened_session, writer, timer)
         capture_session.start()
+    except CliExit as exc:
+        cleanup_startup()
+        terminal.say(exc.message)
+        return exc.code
     except (DeviceNotFoundError, PermissionError, UnsupportedPlatformError, OSError) as exc:
         cleanup_error = cleanup_startup()
         detail = f"; cleanup: {cleanup_error}" if cleanup_error else ""
@@ -393,8 +455,8 @@ def run_calibrate(
             outcome = runner.run(
                 Path(artifacts.capture_path),
                 Path(artifacts.manifest_path),
-                mapping_path,
-                mapping,
+                active_mapping_path,
+                active_mapping,
                 config,
             )
             if outcome.profile is not None:
@@ -440,7 +502,8 @@ def run_calibrate(
                         report_json,
                         report_markdown,
                         None,
-                        mapping_path,
+                        summary_mapping,
+                        run_reference,
                     )
                     return 0
                 if "save" not in save_effect:
@@ -466,7 +529,8 @@ def run_calibrate(
                     report_json,
                     report_markdown,
                     profile_id,
-                    mapping_path,
+                    summary_mapping,
+                    run_reference,
                 )
                 return 0
             if outcome.exit_reason == "profile_not_derivable":
@@ -485,7 +549,8 @@ def run_calibrate(
                     report_json,
                     report_markdown,
                     None,
-                    mapping_path,
+                    summary_mapping,
+                    run_reference,
                 )
                 return 4
             if targets is None:
@@ -504,7 +569,8 @@ def run_calibrate(
                     report_json,
                     report_markdown,
                     None,
-                    mapping_path,
+                    summary_mapping,
+                    run_reference,
                 )
                 return 4
             target = targets[0]
@@ -522,7 +588,8 @@ def run_calibrate(
                     report_json,
                     report_markdown,
                     None,
-                    mapping_path,
+                    summary_mapping,
+                    run_reference,
                 )
                 return 4
             name = "/".join(target)
@@ -542,7 +609,8 @@ def run_calibrate(
                     report_json,
                     report_markdown,
                     None,
-                    mapping_path,
+                    summary_mapping,
+                    run_reference,
                 )
                 return 4
             if "record_retry" not in dispatch(RetryDecision(True)):
@@ -597,6 +665,28 @@ def run_calibrate(
     return 1
 
 
+def _select_discovered(
+    args: Namespace, deps: CliDependencies, terminal: Console, sysfs_root: Path
+) -> tuple[ResolvedDevice, DiscoveryScanner] | int:
+    """``select_device`` effect over a single discovery snapshot (RF11, RF12)."""
+    scanner = deps.scanner(sysfs_root)
+    try:
+        snapshot = discover(scanner, sysfs_root)
+        if args.device:
+            return resolve_reference(args.device, snapshot), scanner
+    except CliExit as exc:
+        terminal.say(exc.message)
+        return exc.code
+    gamepads = snapshot.gamepads
+    if not gamepads:
+        terminal.say("erro: nenhum gamepad encontrado; rode `zonepad devices --all`")
+        return 3
+    selected = terminal.ask_choice("Escolha o controle", [gamepad_label(d) for d in gamepads])
+    if selected is None:
+        return 130
+    return resolve_reference(gamepads[selected].stable_id or "", snapshot), scanner
+
+
 def _summary(
     console: Console,
     device_id: str,
@@ -608,7 +698,8 @@ def _summary(
     report_json: Path,
     report_markdown: Path,
     profile_id: str | None,
-    mapping_path: Path,
+    mapping_path: Path | None,
+    run_reference: str,
 ) -> None:
     duration = max(0.0, (clock.now_ns() - started_ns) / 1_000_000_000)
     console.say(
@@ -620,7 +711,8 @@ def _summary(
     console.say(f"Relatórios: {report_json} e {report_markdown}")
     if profile_id:
         console.say(f"profile_id: {profile_id}")
+        mapping_option = f" --mapping {mapping_path}" if mapping_path is not None else ""
         console.say(
-            f"Próximo comando: zonepad run --device {device_id} --profile {profile_id} "
-            f"--mapping {mapping_path}"
+            f"Próximo comando: zonepad run --device {run_reference} --profile {profile_id}"
+            f"{mapping_option}"
         )
