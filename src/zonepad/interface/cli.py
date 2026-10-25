@@ -29,6 +29,7 @@ from zonepad.infrastructure.manifest_reader import load_manifest, load_metrics_c
 from zonepad.infrastructure.mapping import load_device_mapping
 from zonepad.infrastructure.replay import load_capture
 from zonepad.infrastructure.uinput import LinuxUinputPublisher
+from zonepad.interface.calibration_cli import run_calibrate
 
 
 def _positive_float(value: str) -> float:
@@ -103,6 +104,72 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="falha com código 4 diante de achados bloqueantes e não grava perfil",
     )
+    calibrate = subcommands.add_parser(
+        "calibrate",
+        help="conduz a calibração interativa de um controle",
+        description=(
+            "Grava uma captura segmentada, mede sua qualidade e oferece a criação de perfil v1. "
+            "Requer TTY; não descobre mapping automaticamente."
+        ),
+        epilog=(
+            "códigos de saída:\n"
+            "  0  perfil salvo ou resultado aceito sem salvar\n"
+            "  1  falha inesperada\n"
+            "  2  argumentos, TTY, mapping, thresholds ou captura inválidos\n"
+            "  3  dispositivo indisponível, desconectado ou sem permissão\n"
+            "  4  qualidade bloqueante ou perfil não derivável\n"
+            "  130 cancelamento (Ctrl+C, EOF ou opção cancelar)\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    calibrate.add_argument("--device", help="nó evdev; omitido: seleção manual")
+    calibrate.add_argument(
+        "--mapping", type=Path, required=True, help="mapping JSON v1 com lx, ly, rx, ry, lt e rt"
+    )
+    calibrate.add_argument(
+        "--capture-dir",
+        type=Path,
+        default=Path("~/.local/share/zonepad/captures"),
+        help="diretório base das sessões de captura",
+    )
+    calibrate.add_argument(
+        "--profiles-dir",
+        type=Path,
+        default=Path("~/.config/zonepad/profiles"),
+        help="diretório dos perfis v1",
+    )
+    calibrate.add_argument("--thresholds", type=Path, help="JSON opcional com thresholds v1")
+    calibrate.add_argument(
+        "--warmup-seconds",
+        type=_positive_float,
+        default=2.0,
+        help="aquecimento inicial (padrão: 2)",
+    )
+    calibrate.add_argument(
+        "--rest-seconds",
+        type=_positive_float,
+        default=5.0,
+        help="repouso total incluindo 1 s interno (padrão: 5)",
+    )
+    calibrate.add_argument(
+        "--circle-seconds",
+        type=_positive_float,
+        default=6.0,
+        help="duração de cada direção de stick (padrão: 6)",
+    )
+    calibrate.add_argument(
+        "--trigger-seconds",
+        type=_positive_float,
+        default=25.0,
+        help="duração de cada varredura de trigger (padrão: 25)",
+    )
+    calibrate.add_argument(
+        "--max-retries",
+        type=int,
+        choices=range(0, 7),
+        default=2,
+        help="retries máximos por alvo; limite global fixo de 6 (padrão: 2)",
+    )
     return parser
 
 
@@ -138,6 +205,8 @@ def main(argv: list[str] | None = None) -> int:
         return _run(args)
     if args.command == "measure":
         return _measure(args)
+    if args.command == "calibrate":
+        return run_calibrate(args)
     return 2
 
 
