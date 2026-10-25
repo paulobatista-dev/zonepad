@@ -68,11 +68,13 @@ Os prompts 00, 01, 02 e 03 estão concluídos e mergeados em `main`. Execute cad
 | `01-runtime-cli-end-to-end.md` | Comando `zonepad run` com evdev → perfil → uinput | Concluído — mergeado em `main` |
 | `02-calibration-metrics.md` | Métricas, relatório e profile builder | Concluído — mergeado no PR #5 (spec `docs/specs/metrics-v1.md`, ADR `docs/adr/0004-metricas-relatorio-separado-e-perfil-v1.md`) |
 | `03-calibration-wizard.md` | Wizard CLI de calibração | Concluído — mergeado no PR #7 |
-| `04-device-discovery-mapping.md` | Descoberta e mapeamento por família | A criar |
+| `04-device-discovery-mapping.md` | Descoberta de gamepads, identidade estável e mapeamento por família | Pronto para execução |
 | `05-gui-pyside6.md` | GUI funcional | A criar |
 | `06-quality-release.md` | Ruff/mypy/cobertura/packaging | A criar |
 
 O prompt 02 é pré-requisito do 03: ele entrega o motor de medição e a geração de perfil; o wizard apenas orquestra esse motor e a política de retry. O prompt 04 substitui a seleção manual de dispositivo e o mapping manual usados no 03.
+
+Para executar o prompt 04, crie a branch `feat/device-discovery-mapping` a partir da `main` e comece por `/flow-design-feature` (`$flow-design-feature` no Codex). A spec `docs/specs/device-discovery-v1.md` e o ADR 0006 precisam de aprovação do usuário antes de qualquer código de produção.
 
 ## Regra de ouro
 
