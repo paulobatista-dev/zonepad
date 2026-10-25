@@ -573,19 +573,26 @@ Erros novos (aditivos em `domain/errors.py`): `AmbiguousDeviceError(reference, c
 
 ```python
 class InputDeviceScanner(Protocol):
-    def scan(self) -> Sequence[ObservedInputDevice]: ...          # nunca abre /dev; DeviceNotFoundError se a raiz falta
+    def scan(
+        self,
+    ) -> Sequence[ObservedInputDevice]: ...  # nunca abre /dev; DeviceNotFoundError se a raiz falta
+
 
 class AbsInfoReader(Protocol):
     def read_absinfo(self, event_node: str, codes: Sequence[int]) -> Mapping[int, AbsInfo]: ...
+
     # DeviceAccessDeniedError | DeviceNotFoundError
+
 
 class DeviceCatalog(Protocol):
     def match(self, observed: ObservedInputDevice) -> CatalogMatch: ...
+
 
 class DeviceMappingStore(Protocol):
     def find(self, key: MappingKey) -> StoredMappingRef | None: ...
     def save(self, record: MappingRecord, *, overwrite: bool) -> StoredMappingRef: ...
     def entries(self) -> Sequence[StoredMappingRef]: ...
+
 
 class HotplugWatcher(Protocol):
     def snapshot(self) -> DiscoverySnapshot: ...
