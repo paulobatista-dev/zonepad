@@ -49,6 +49,7 @@ O sysfs **não** expõe `input_absinfo`. `capabilities/abs` é só um bitmap (`d
    - A gravação é atômica, na ordem mapping → identity → índice.
    - Quando o índice está ausente ou inconsistente, ele é reconstruído a partir dos sidecars.
    - O valor cru de `uniq`, serial e `phys` existe só no sidecar local.
+   - O sidecar registra a origem do range por canal (`draft.range_sources`) além do resumo `draft.range_source`.
 8. **Draft.** Todo draft é provisório (`provisional=true`).
    - O range vem de absinfo; sem absinfo, de `known_ranges` do catálogo.
    - O centro de stick é `(min+max+1)//2`, a menos que o catálogo traga um override.
@@ -100,3 +101,14 @@ O sysfs **não** expõe `input_absinfo`. `capabilities/abs` é só um bitmap (`d
 - **`--sysfs-root` em `/sys/class/input`.** Rejeitada: os symlinks resolvem para `/sys/devices`, o que impede o confinamento.
 - **Hot-plug por udev, netlink ou inotify.** Rejeitada neste incremento: exige dependência nova ou complexidade sem ganho sobre polling de 1 s.
 - **`monkeypatch` de `open` no teste de confinamento.** Rejeitada: `Path.read_text` e `io.open` escapam. O audit hook cobre todos os caminhos.
+
+## Adendo (2026-10-25, implementação)
+
+Decisões aprovadas durante a implementação, detalhadas na seção "Registro de implementação" da spec:
+
+- `identity.json` ganha `draft.range_sources` por canal.
+- `--catalog` inválido sai com código 2.
+- Candidatos de eixos ambíguos: os dados usam `canal=código`; a mensagem humana acrescenta o nome Linux.
+- Novos códigos estáveis: `missing_channels`, `absinfo_permission_denied`, `absinfo_unavailable:<code>`, `absinfo_unsupported_platform`, `mapping_provisional`, `mapping_edited`, `identity_missing` e `mapping_missing`.
+- RF2 passa a excluir pads de tablet (stylus/pen com `ABS_X/Y`) antes da regra de gamepad.
+- O `EVIOCGABS` só é emitido em máquinas com layout asm-generic de ioctl; nas outras, o draft usa o catálogo.

@@ -38,7 +38,10 @@ Dentro de um ambiente com Python 3.15:
 
 ```bash
 python -m pip install .
-zonepad list
+zonepad devices
+zonepad mapping draft --device <id>
+zonepad calibrate --device <id>
+zonepad run --device <id> --profile <uuid> --duration 10
 zonepad profiles --directory ~/.config/zonepad/profiles
 zonepad replay captura.jsonl
 zonepad run --device event3 --profile <uuid> --mapping controle.json --duration 10
@@ -47,11 +50,67 @@ zonepad measure captura.jsonl --manifest captura.manifest.json --mapping control
 
 O backend Linux lê `/dev/input/event*` (evdev), aplica o perfil em tempo real e publica eventos em um controle virtual por `/dev/uinput`. O acesso ao dispositivo `uinput` depende das permissões da distribuição. Nenhum acesso a hardware é executado nos testes.
 
-O runtime programático é exposto por `zonepad.application.runtime.build_runtime`; a CLI cobre descoberta, perfis, replay e execução de perfil salvo. O comando `run` aplica o perfil somente ao controle virtual criado pelo ZonaPad.
+O runtime programático é exposto por `zonepad.application.runtime.build_runtime`; a CLI cobre descoberta, perfis, replay e execução de perfil salvo. O comando `run` aplica o perfil somente ao controle virtual criado pelo ZonaPad. `zonepad list` continua listando todo `event*` sem filtro; prefira `zonepad devices`.
+
+### Descobrir o controle e gerar o mapping
+
+A spec está em [`docs/specs/device-discovery-v1.md`](docs/specs/device-discovery-v1.md) e a decisão em [`docs/adr/0006-descoberta-e-identidade-de-dispositivos.md`](docs/adr/0006-descoberta-e-identidade-de-dispositivos.md). O fluxo completo, sem escolher `eventN` nem escrever mapping à mão:
+
+```bash
+zonepad devices
+zonepad mapping draft --device usb-045e-02ea-se73b07be4c
+zonepad calibrate --device usb-045e-02ea-se73b07be4c
+zonepad run --device usb-045e-02ea-se73b07be4c --profile <uuid>
+```
+
+`zonepad devices` lê só o sysfs (`/sys/class/input/event*`), sem privilégio e sem abrir `/dev/input`. Mostra apenas gamepads, com ID estável, nome, VID:PID, conexão, nó e estado do mapping salvo (`salvo`, `provisório`, `editado`, `inválido` ou `ausente`). Opções:
+
+- `--all` inclui teclados, mouses, touchpads, sensores de movimento e dispositivos virtuais, com o motivo de cada classificação. O controle virtual do próprio ZonaPad aparece como `virtual:zonapad` e nunca é selecionável.
+- `--json` escreve uma linha JSON por dispositivo (`schema_version`, `id`, `kind`, `vid`, `pid`, `connection`, `node`, `mapping`, `reasons`, `warnings`…). Serial, MAC e `phys` ficam de fora.
+- `--verify` abre cada gamepad (`O_RDONLY`), fecha em seguida e informa o acesso; não combina com `--watch`.
+- `--watch [--interval S]` acompanha conexões e remoções por polling do sysfs (padrão 1 s, entre 0,25 e 5) até `Ctrl+C` (código 130). Lista vazia não encerra o comando.
+
+Para testar sem hardware, aponte `--sysfs-root` para a árvore sintética versionada:
+
+```bash
+zonepad devices --sysfs-root tests/fixtures/sysfs --all
+zonepad mapping draft --device usb-045e-02ea-se73b07be4c --sysfs-root tests/fixtures/sysfs --print --no-probe
+```
+
+**ID estável.** O formato é `<bus>-<vid>-<pid>-<qualificador>[.<n>]`, por exemplo `usb-045e-02ea-se73b07be4c`. O qualificador vem, nesta ordem, do `uniq` (`u`), do serial USB (`s`) ou do `phys` USB (`p`), sempre como 10 hex de SHA-256; sem nenhum deles, vira a ocorrência `n1`, `n2`. O `eventN` nunca entra no ID. O hash é **pseudônimo, não anônimo**: um MAC pode ser recuperado por força bruta, então não compartilhe o ID como dado anônimo. `--device` aceita o ID estável, o `eventN` ou a base `<bus>-<vid>-<pid>` quando ela identifica um único gamepad.
+
+**Mapping draft.** `zonepad mapping draft` monta um mapping `schema_version=1` a partir das capabilities, dos ranges do driver e de um catálogo por família (Xbox via xpad, DualShock 4, DualSense; Switch Pro reconhecido). Ele abre só o nó resolvido, em modo leitura, para o ioctl `EVIOCGABS`, sem ler eventos; `--no-probe` usa só o catálogo. O resultado fica em:
+
+```text
+~/.config/zonepad/devices/          # --devices-dir; diretórios com modo 0700
+├── index.json                      # cache reconstruível
+└── <id>/
+    ├── mapping.json                # mapping v1
+    └── identity.json               # identidade, proveniência e ranges por canal
+```
+
+Outras opções: `--print` (só stdout), `--out PATH` (só o mapping, sem identidade; `run` não o resolve sozinho), `--force` (sobrescreve), `--connection usb|bluetooth|desconhecida` (só quando a conexão foi detectada como desconhecida), `--catalog PATH` (catálogo do usuário, mesmo schema) e `--accept-axis-guess`. `zonepad mapping show --device <id>` mostra o salvo (offline com o ID estável) e `zonepad mapping validate <arquivo>` valida um mapping v1.
+
+Limitações declaradas:
+
+- **O draft é provisório.** Ranges vêm do driver; centro (`(min+max+1)//2`) e repouso (`minimum`) são declarados, não medidos. Rode `zonepad calibrate` antes de confiar nas métricas.
+- **Controles idênticos** sem serial nem `uniq` recebem IDs por ocorrência (`n1`, `n2`) ou sufixo `.2`; esses IDs são frágeis, podem trocar de aparelho ao reconectar e exigem `--accept-fragile-id` (ou confirmação no terminal).
+- **Bluetooth** gera outro ID que o USB (o bus faz parte do ID); um mapping não vale para a outra conexão. Xbox via Bluetooth e 8BitDo em D-input não estão no catálogo e dependem da heurística genérica, que pede `--accept-axis-guess` quando os eixos são ambíguos.
+- **Switch Pro** tem ZL/ZR digitais; o mapping v1 exige gatilhos analógicos, então o draft termina com código 4 (`digital_triggers_only`).
+- **Hot-plug** é por polling do sysfs; a reconexão automática durante `run` não existe.
+- **Permissões.** O sysfs é legível sem privilégio. Abrir `/dev/input/eventN` costuma funcionar por ACL (uaccess) numa sessão gráfica local. A alternativa é `sudo usermod -aG input "$USER"` e reiniciar a sessão; o impacto é que o grupo `input` lê **todos** os dispositivos de entrada, inclusive o teclado; para desfazer, `sudo gpasswd -d "$USER" input` e reiniciar a sessão. O ZonaPad nunca executa `sudo` nem altera permissões. Família catalogada sem permissão usa os ranges do catálogo com aviso.
+
+Códigos de saída de `mapping draft`: 0 sucesso; 2 referência ambígua, identidade frágil ou eixos ambíguos sem confirmação, mapping existente sem `--force`, `--connection` conflitante ou `--catalog` inválido; 3 dispositivo ausente, ou sem permissão e sem ranges de catálogo; 4 canais insuficientes, família sem suporte ou ranges indisponíveis (nada é gravado).
 
 ### Executar um perfil salvo
 
-`zonepad run` requer um mapping JSON. Embora `--mapping` permaneça opcional para permitir uma mensagem de erro mais clara, o comando encerra com código 2 se ele faltar: o ZonaPad não infere ranges, centro de stick ou repouso de trigger.
+Com ID estável (ou `eventN` sem `--mapping`), `zonepad run` usa o mapping salvo do dispositivo; `--mapping` explícito sempre vence o salvo, e um `--mapping` inválido nunca cai para o salvo. Sem nenhum dos dois, o comando encerra com código 2 indicando `zonepad mapping draft`: o ZonaPad não infere ranges no `run`. Dispositivo não encontrado retorna 3. `--device eventN --mapping arquivo.json` mantém o caminho legado, sem sysfs nem mappings salvos.
+
+```bash
+zonepad run --device usb-045e-02ea-se73b07be4c --profile 550e8400-e29b-41d4-a716-446655440000
+```
+
+O exemplo legado, com mapping explícito:
 
 ```bash
 zonepad run \
@@ -152,22 +211,23 @@ Campos opcionais: `capture_sha256`, `nominal_rate_hz`, `connection` (`usb`, `blu
 
 ### Calibrar com o wizard interativo
 
-`zonepad calibrate` orienta uma sessão de calibração pelo terminal, grava captura JSONL e manifesto compatíveis com `zonepad measure`, mostra a qualidade e oferece salvar um perfil v1. A execução exige TTY; `--help` funciona sem TTY. O mapping permanece manual e deve definir os quatro eixos e os dois triggers.
+`zonepad calibrate` orienta uma sessão de calibração pelo terminal, grava captura JSONL e manifesto compatíveis com `zonepad measure`, mostra a qualidade e oferece salvar um perfil v1. A execução exige TTY; `--help` funciona sem TTY. Com ID estável, o mapping vem do salvo por `zonepad mapping draft`; `--mapping` explícito continua aceito e vence o salvo.
 
 ```bash
+zonepad calibrate --device usb-045e-02ea-se73b07be4c
 zonepad calibrate --device event3 --mapping controle.json
 ```
 
-Sem `--device`, o comando apresenta os dispositivos disponíveis para seleção manual. Antes de abrir o controle, confirma a identidade e valida mapping, thresholds e durações. O protocolo usa 2 s de aquecimento, 5 s de repouso (1 s descartado pelo motor), 6 s para cada direção de cada stick e 25 s para cada trigger. Cada ciclo de trigger dura 5 s: 0,5 s em repouso, 2 s pressionando, 0,5 s no fundo e 2 s soltando; são 5 ciclos por gatilho. A duração total de captura é aproximadamente 81 s, além das instruções e contagens. Os thresholds e mínimos de amostra continuam sendo avaliados pelo motor de `measure`; a duração, sozinha, não garante qualidade.
+Sem `--device`, o comando lista só os gamepads descobertos, como `nome (id, eventN)`. A confirmação mostra identidade, conexão e origem do mapping; mapping ausente encerra com código 2 antes de abrir o controle. Antes de abrir o controle, confirma a identidade e valida mapping, thresholds e durações. O protocolo usa 2 s de aquecimento, 5 s de repouso (1 s descartado pelo motor), 6 s para cada direção de cada stick e 25 s para cada trigger. Cada ciclo de trigger dura 5 s: 0,5 s em repouso, 2 s pressionando, 0,5 s no fundo e 2 s soltando; são 5 ciclos por gatilho. A duração total de captura é aproximadamente 81 s, além das instruções e contagens. Os thresholds e mínimos de amostra continuam sendo avaliados pelo motor de `measure`; a duração, sozinha, não garante qualidade.
 
-Os artefatos ficam em `~/.local/share/zonepad/captures/<UTC>-<device>/`: `capture.jsonl`, `capture.manifest.json`, `report.json` e `report.md`. O perfil, quando derivável e aceito, é gravado em `~/.config/zonepad/profiles`. O comando seguinte é `zonepad run --device event3 --profile <uuid> --mapping controle.json`.
+Os artefatos ficam em `~/.local/share/zonepad/captures/<UTC>-<device>/`: `capture.jsonl`, `capture.manifest.json`, `report.json` e `report.md`. O perfil, quando derivável e aceito, é gravado em `~/.config/zonepad/profiles`. O nome do diretório e a captura continuam usando o `eventN`. O comando seguinte sugerido é `zonepad run --device <id> --profile <uuid>` (com `--mapping` quando ele foi explícito).
 
 ```bash
 zonepad calibrate --help
 zonepad calibrate --mapping controle.json --capture-dir ./captures --profiles-dir ./profiles
 ```
 
-`Ctrl+C`, EOF e cancelamento preservam a captura parcial e retornam 130; desconexão retorna 3. Qualidade bloqueante sem retry seguro retorna 4 e não grava perfil. O backend evdev atual não identifica VID/PID, então manifesto usa `0x0000` para ambos quando desconhecidos. O protocolo não faz descoberta automática, hot-plug nem mapping automático; os detalhes e a política de retry estão em [`docs/specs/wizard-v1.md`](docs/specs/wizard-v1.md) e [`docs/adr/0005-wizard-cli-calibrate.md`](docs/adr/0005-wizard-cli-calibrate.md).
+`Ctrl+C`, EOF e cancelamento preservam a captura parcial e retornam 130; desconexão retorna 3. Qualidade bloqueante sem retry seguro retorna 4 e não grava perfil. O backend evdev atual não identifica VID/PID, então manifesto usa `0x0000` para ambos quando desconhecidos. O wizard usa um único snapshot de descoberta na tela de escolha (sem hot-plug ao vivo); os detalhes e a política de retry estão em [`docs/specs/wizard-v1.md`](docs/specs/wizard-v1.md) e [`docs/adr/0005-wizard-cli-calibrate.md`](docs/adr/0005-wizard-cli-calibrate.md).
 
 Para a GUI, instale o extra opcional: `python -m pip install -e '.[gui]'` (ou `'.[dev,gui]'`) e execute `zonepad-gui`.
 
@@ -364,8 +424,8 @@ Copyright (c) 2026 ZonaPad contributors.
 
 ## Próximos passos
 
-1. Medir e versionar mappings por família de controle, USB/Bluetooth e firmware.
+1. Gravar mapping não provisório a partir da calibração medida.
 2. Validar thresholds e defaults com capturas reais de múltiplos controles.
-3. Implementar descoberta hot-plug e parsers específicos após capturas reais.
+3. Validar o catálogo de famílias e a identidade em hardware real (smoke autorizado) e marcar `verified_on_hardware`.
 4. Implementar a GUI PySide6 sobre o motor existente.
 5. Fortalecer CI com cobertura e validação de packaging.

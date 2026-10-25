@@ -138,7 +138,7 @@ As regras são avaliadas em ordem e a primeira que casar vence. Os códigos são
 | 0 | `unknown` | erro de leitura (RF1) | `broken_device_link`, `permission_denied`, `unreadable_attribute:<a>`, `malformed_bitmap:<a>` |
 | 1 | `virtual` | o caminho resolvido de `inputM` contém o segmento `/devices/virtual/input/`, **ou** `bustype == 0x06`. O segmento `/devices/virtual/misc/uhid/` (Bluetooth real via BlueZ) **não** conta | `virtual:zonapad` (nome `ZonaPad Virtual Controller` e `1234:0001`); `virtual:steam_input` (VID `28de` ou nome contendo `Steam`, INFERÊNCIA); `virtual:uinput`; `virtual:bus_virtual` |
 | 2 | `motion_sensor` | `INPUT_PROP_ACCELEROMETER` (0x06), **ou** sem `EV_KEY` e com `ABS_X`, `ABS_Y` e `ABS_Z` | `not_a_gamepad:motion_sensor` |
-| 3 | `touchpad` | `ABS_MT_POSITION_X/Y` (0x35/0x36), **ou** `INPUT_PROP_POINTER` (0x00), **ou** `BTN_TOOL_FINGER` (0x145) sem `INPUT_PROP_DIRECT`. Com `INPUT_PROP_DIRECT` ou `BTN_TOOL_PEN`, a classe é `unknown` | `not_a_gamepad:touchpad`, `not_a_gamepad:touchscreen_or_tablet` |
+| 3 | `touchpad` | `ABS_MT_POSITION_X/Y` (0x35/0x36), **ou** `INPUT_PROP_POINTER` (0x00), **ou** `BTN_TOOL_FINGER` (0x145) sem `INPUT_PROP_DIRECT`. Com `INPUT_PROP_DIRECT` ou `BTN_TOOL_PEN`, a classe é `unknown`. **Também** fora do ramo de ponteiro: `ABS_X/Y` com `BTN_STYLUS` (0x14b) ou `BTN_TOOL_PEN` (0x140) é `unknown`, antes da regra 4 (pads de tablet Wacom anunciam `BTN_SOUTH`, `wacom_wac.c:4116-4125`; mesma ordem de `udev-builtin-input_id.c:233-236`) | `not_a_gamepad:touchpad`, `not_a_gamepad:touchscreen_or_tablet` |
 | 4 | `gamepad` (`gamepad_kind=gamepad`) | `EV_ABS`, `ABS_X`, `ABS_Y`, `EV_KEY` e `BTN_SOUTH` (0x130). Se também houver `REL_X/Y` ou o bloco completo de teclado, a classe é `unknown` | `ambiguous:gamepad_and_mouse`, `ambiguous:gamepad_and_keyboard` |
 | 5 | `gamepad` (`gamepad_kind=joystick_hid`) | `EV_ABS`, `ABS_X`, `ABS_Y` e algum código em `0x120..0x12f`, sem nenhum em `0x110..0x11f`. As exclusões da regra 4 valem aqui | aviso `face_buttons_not_positional` |
 | 6 | `keyboard` | `EV_KEY` com os bits 1..31 todos ligados, **ou** `KEY_A` (30) e `KEY_SPACE` (57) sem `ABS_X/Y` | `not_a_gamepad:keyboard` |
@@ -332,7 +332,10 @@ Entradas iniciais (FATO no kernel `330517c63aa9`; todas com `verified_on_hardwar
   "identity": {"qualifier_source": "usb_serial", "occurrence": null, "fragile": false},
   "draft": {
     "catalog_entry_id": "xpad-xboxone", "catalog_version": 1, "catalog_source": "builtin",
-    "range_source": "evdev_absinfo", "provisional": true,
+    "range_source": "evdev_absinfo",
+    "range_sources": {"lx": "evdev_absinfo", "ly": "evdev_absinfo", "rx": "evdev_absinfo",
+                      "ry": "evdev_absinfo", "lt": "evdev_absinfo", "rt": "evdev_absinfo"},
+    "provisional": true,
     "provisional_fields": ["axes.lx.center", "axes.ly.center", "axes.rx.center",
                            "axes.ry.center", "triggers.lt.rest", "triggers.rt.rest"],
     "absinfo": {"0": {"minimum": -32768, "maximum": 32767, "fuzz": 16, "flat": 128,
@@ -347,6 +350,7 @@ Entradas iniciais (FATO no kernel `330517c63aa9`; todas com `verified_on_hardwar
 ```
 
   - A validação é estrita: o `stable_id` precisa ser igual ao nome do diretório e casar com a regex, e `mapping_file` é fixo.
+  - `draft.range_sources` tem exatamente as chaves `lx`, `ly`, `rx`, `ry`, `lt` e `rt`, cada uma `evdev_absinfo` ou `catalog`. `draft.range_source` é `catalog` se qualquer canal veio do catálogo, senão `evdev_absinfo`; um sidecar em que os dois discordem é inválido.
   - O valor cru de `uniq`, serial e `phys` só existe neste arquivo local, nunca em exports, relatórios, capturas ou manifestos.
 - **`index.json`:** `{"schema_version": 1, "entries": [{"stable_id", "connection", "mapping_sha256", "provisional", "fragile", "updated_at"}]}`, ordenado por `stable_id`.
 - **Escrita:**
@@ -787,3 +791,30 @@ Valem os critérios do prompt 04, com as mudanças M1–M16. Em resumo:
 | D12 | python | `eventN` + `--mapping` = caminho legado; `list` inalterado; `devices` é o comando novo |
 | D13 | hardware | Sysfs sem privilégio; nó com uaccess ou grupo `input`; mensagem com impacto e reversão |
 | D14 | python | Raiz sysfs, reader, store, clock e catálogo injetáveis; audit hook; builder em `tmp_path` |
+
+## Registro de implementação (etapas A e B, 2026-10-25)
+
+Decisões do usuário sobre ambiguidades levantadas na implementação (agora contrato):
+
+1. Códigos adotados, além dos já listados: `missing_channels` (motivo de `InsufficientCapabilities` quando falta canal e não há gatilho digital), `absinfo_permission_denied` (aviso: sonda negada, ranges do catálogo), `mapping_provisional` e `mapping_edited` (avisos da resolução RF8), `identity_missing` e `mapping_missing` (detalhe do status `invalid` no store).
+2. `identity.json` mantém `draft.range_source` e ganha `draft.range_sources` por canal (RF7).
+3. `--catalog` inválido em `mapping draft` → exit 2, `erro: [INVALID_CATALOG] catálogo inválido: <campo>: <motivo>`.
+4. Candidatos de eixos ambíguos: nos dados (`AmbiguousAxisAssignmentError.candidates`), `canal=código` (`"rx=2,ry=5"`); na mensagem da CLI, também o nome Linux (`rx=ABS_Z(2), ry=ABS_RZ(5)`).
+
+Revisão de hardware da etapa A (sem bloqueador), incorporada:
+
+- RF2, regra 3: stylus/pen com `ABS_X/Y` → `not_a_gamepad:touchscreen_or_tablet` antes da regra 4.
+- Catálogo: os códigos de `channels` precisam estar em `required_abs` (senão `InvalidCatalogError`). `xpad-xbox360` registra o quirk `also_matches_original_xbox_by_interface_protocol` (`not_in {81, d0}` também casa o Xbox original; ranges e botões iguais).
+- Códigos novos: `absinfo_unavailable:<code>` (aviso: a sonda funcionou, mas o código veio degenerado ou com `EINVAL` e o canal caiu para o catálogo) e `absinfo_unsupported_platform` (aviso: `platform.machine()` fora do layout asm-generic de ioctl — x86_64, i386–i686, aarch64, armv*, riscv64 —; o reader recusa antes do `open` e o draft cai para o catálogo como em permissão negada; sem catálogo, `ranges_unavailable`, exit 4).
+
+Decisões internas da implementação (não mudam o contrato aprovado; registradas para revisão):
+
+- **Assinaturas.** `build_draft(caps, catalog, rules, *, driver, gamepad_kind)`; `draft_mapping(resolved, *, absinfo_reader | None, catalog, rules, accept_axis_guess=False) -> DraftOutcome | InsufficientCapabilities` (`None` = `--no-probe`); `resolve_mapping(explicit_path, identity, store, *, sha256_of)`, que compara a conexão (o `store.find` busca só pelo `stable_id`); `PollingHotplugWatcher(scanner, policies: DiscoveryPolicies, clock, interval_s)`; `AbsInfo.fuzz/flat/resolution` são `int | None` (`None` = negativo descartado); `cli.main(argv, *, dependencies: CliDependencies | None = None)`.
+- **Erros aditivos** além dos da spec: `InvalidSavedMappingError(InvalidMappingError)` e `InvalidCatalogError`.
+- **Catálogo, tier 2:** uma entrada com `usb_interface_protocol` não nulo também vale como entrada de driver; o protocolo é ignorado no match exato por VID:PID; protocolo ausente nunca casa.
+- **Absinfo degenerado** (`minimum >= maximum`) é descartado pelo reader; o canal cai para o catálogo (com `absinfo_unavailable:<code>`) ou termina em `ranges_unavailable`.
+- **`devices --json --verify`:** `access` é `ok`, `permission_denied` ou `missing` (exibidos como `ok`, `sem permissão`, `ausente`); `null` para nós não selecionáveis com `--all`.
+- **`devices --watch`:** eventos `{"event": "added"|"removed", ...campos de dispositivo}` e `{"event": "renamed", "old_id", "new_id"}`; no texto, `conectado:`, `removido:` e `renomeado:`.
+- **`mapping show --json`:** `identity` é o `identity.json` **sem** `uniq`, `usb_serial` e `phys`; `status` é a string do status.
+- **Identidade frágil** exige `--accept-fragile-id` (ou confirmação no TTY) em todos os modos do draft, inclusive `--print` e `--out`.
+- **Verificação pós-`open`** (token `inputM`) vale para `run` e `calibrate`; divergência → exit 3.
