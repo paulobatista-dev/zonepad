@@ -41,6 +41,7 @@ Perfis são salvos atomicamente em JSON com `schema_version=1`; campos desconhec
 │   ├── agents/<id>/             # agent.json + prompt.md
 │   ├── skills/<id>/             # SKILL.md + references/scripts/assets
 │   ├── flows/<id>/              # flow.json + FLOW.md
+│   ├── prompts/                 # prompts de implementação
 │   └── instructions/AGENTS.md
 ├── scripts/
 │   └── sync_ai_assets.py        # gera os espelhos
@@ -123,6 +124,14 @@ Invocação:
 - **OpenCode:** `/flow-bootstrap-app` ou `@flow-bootstrap-app`.
 - **Claude Code:** `/flow-bootstrap-app`.
 - **Codex:** `$flow-bootstrap-app`.
+
+## Prompts de implementação
+
+Prompts versionados em `ai/prompts/` para executar incrementos no Claude Code ou Codex. Eles não são espelhados pelo gerador.
+
+- **Claude Code:** referencie `@ai/prompts/01-runtime-cli-end-to-end.md`.
+- **Codex:** referencie `ai/prompts/01-runtime-cli-end-to-end.md` ou cole o conteúdo.
+- O primeiro incremento é o comando `zonepad run` com evdev → perfil → uinput.
 
 ## GitHub
 

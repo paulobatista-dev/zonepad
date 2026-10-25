@@ -47,6 +47,7 @@ ai/
 ├── agents/<id>/agent.json + prompt.md
 ├── skills/<id>/SKILL.md (+ references/, scripts/, assets/)
 ├── flows/<id>/flow.json + FLOW.md
+├── prompts/                 # prompts de implementação (não espelhados)
 └── instructions/AGENTS.md
 ```
 
@@ -59,6 +60,7 @@ Regras:
 3. Antes de concluir, rode `python scripts/sync_ai_assets.py --check`.
 4. Skills canônicas seguem o padrão Agent Skills; campos específicos de ferramenta não entram na fonte.
 5. Agentes são convertidos para os schemas de OpenCode, Claude Code e Codex pelo gerador.
+6. Prompts de implementação ficam em `ai/prompts/` e não são espelhados.
 
 ## Agentes
 

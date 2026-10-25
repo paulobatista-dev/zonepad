@@ -15,6 +15,7 @@ ai/
 ├── flows/<id>/
 │   ├── flow.json        # metadados do fluxo
 │   └── FLOW.md          # corpo, sem frontmatter
+├── prompts/             # prompts de implementação (não espelhados)
 └── instructions/
     └── AGENTS.md        # instruções compartilhadas
 ```
@@ -125,6 +126,17 @@ argument-hint: ...
 ```
 
 Isso torna o fluxo explícito em OpenCode e Claude. No Codex, o `agents/openai.yaml` gerado também define `allow_implicit_invocation: false`.
+
+## Prompts de implementação
+
+Prompts de trabalho ficam em `ai/prompts/`. Eles não são skills nem agentes e não são espelhados pelo gerador.
+
+- Use um prompt por incremento verificável.
+- O prompt define objetivo, escopo, fora de escopo, critérios de aceite e validação.
+- No Claude Code, referencie `@ai/prompts/<arquivo>.md`; no Codex, referencie `ai/prompts/<arquivo>.md` ou cole o conteúdo.
+- O prompt não substitui as skills; `evidence-based`, `clean-code`, `clean-architecture` e `python-quality` continuam valendo.
+
+O primeiro prompt é `01-runtime-cli-end-to-end.md`, para o comando `zonepad run` com evdev → perfil → uinput.
 
 ## Instruções compartilhadas
 
