@@ -1,2 +1,9 @@
-The Debian files are scaffolding. Build dependencies and udev permissions should
-be reviewed for the target distribution before producing a release package.
+The files in this directory are a Debian packaging scaffold. They have not been
+validated as a buildable or installable Debian package, and this project does
+not define a Debian package version or provide `debian/changelog`.
+
+The current rules use the Python build frontend and pip; they are not a complete
+`pybuild` integration. Validate and convert the scaffold in a target Debian
+distribution that provides Python 3.15 before producing a package. Review build
+dependencies, runtime dependencies, GUI availability, and device permissions
+for that distribution. The optional GUI suggestion is `python3-pyside6.qtwidgets`.

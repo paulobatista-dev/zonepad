@@ -8,5 +8,6 @@ Standards-Version: 4.6.2
 Package: zonepad
 Architecture: all
 Depends: ${python3:Depends}, ${misc:Depends}
+Suggests: python3-pyside6.qtwidgets
 Description: Guided gamepad calibration for Linux
  ZonaPad measures controller input and applies versioned calibration profiles.

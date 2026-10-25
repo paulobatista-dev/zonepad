@@ -1,6 +1,6 @@
 # Prompt 06 — Qualidade, dependências, ambiente de desenvolvimento, build e release
 
-- **Status:** pronto para execução em Claude Code (prioritária) e Codex (alternativa).
+- **Status:** implementação em andamento após aprovação da spec e do ADR 0009.
 - **Incremento:** fechar a base técnica do MVP — dependências e extras corretos, ambiente de desenvolvimento reproduzível, README executável do zero, CI que roda a GUI de verdade e empacota, build de wheel/sdist validado e instalação limpa com smoke.
 - **Branch de implementação:** `chore/dev-environment-release`, criada a partir da `main` com este prompt mergeado.
 - **Fluxos:** `/flow-design-feature` → `/flow-implement-feature` → `/flow-review-calibration`.
@@ -27,8 +27,8 @@ Regra estrutural: **`pyproject.toml` continua sendo a única fonte de dependênc
 4. CI com job de testes que executa a GUI em `offscreen` (sem skip), `pip check` e job de empacotamento com build e smoke do wheel em ambiente limpo.
 5. Wheel/sdist validados quanto a conteúdo (`catalog_data/*.json`, entry points, README, LICENSE).
 6. `docs/specs/dev-environment-v1.md` e `docs/adr/0009-*.md` (D1–D12) aprovados antes da implementação.
-7. `CHANGELOG.md` e versão coerentes entre `pyproject.toml`, `packaging/aur/PKGBUILD` e `packaging/debian/control`.
-8. `ai/prompts/README.md` com 05 concluído e 06 como último prompt do roadmap.
+7. `CHANGELOG.md` e versão coerentes entre `pyproject.toml` e `packaging/aur/PKGBUILD`; para Debian, usar `packaging/debian/changelog` se o pacote for mantido como executável, ou registrar explicitamente que o scaffold não declara versão.
+8. `ai/prompts/README.md` com 05 concluído (PR #14), 06 em implementação e 06 como último prompt do roadmap.
 9. Relatório final com evidência de cada comando e o que não foi executado.
 
 ## Contexto verificado (2026-10-25, `main` em `f5fc494`)
@@ -63,9 +63,9 @@ Skills aplicáveis: `python-quality`, `python-app-architecture`, `clean-code`, `
 
 ## Pré-condições
 
-1. Este prompt deve estar mergeado em `main`. Enquanto não estiver, execute a partir da branch que contém o prompt e registre a exceção.
+1. Este prompt deve estar mergeado em `main`. Enquanto não estiver, execute a partir da branch que contém o prompt e registre a exceção. Nessa exceção, `main` deve ser ancestral da branch; `git log --oneline main..HEAD` pode conter somente o commit que adiciona o Prompt 06.
 2. Trabalhe **somente no checkout principal** (`/home/costa/Workspace/zonepad`). Proibido `git worktree`, cópia do repositório para outro diretório e edição de arquivos gerados (`AGENTS.md`, `CLAUDE.md`, `.opencode/`, `.claude/`, `.agents/`, `.codex/`).
-3. Crie a branch de implementação a partir da `main`:
+3. Crie a branch de implementação a partir da `main` quando o prompt já estiver mergeado. Se o Prompt 06 ainda estiver em uma branch de documentação, crie a branch de trabalho a partir da branch que o contém, mantendo `main` como ancestral e registrando a exceção:
 
 ```bash
 cd /home/costa/Workspace/zonepad
@@ -73,6 +73,15 @@ git status --porcelain        # deve estar vazio
 git switch main
 git pull --ff-only
 git switch -c chore/dev-environment-release
+```
+
+Na exceção de prompt ainda não mergeado, parta da branch que contém o prompt:
+
+```bash
+git switch <branch-que-contem-o-prompt-06>
+git switch -c chore/dev-environment-release
+git merge-base --is-ancestor main HEAD
+git log --oneline main..HEAD # somente o commit do Prompt 06
 ```
 
 4. Toolchain e baseline:
@@ -92,7 +101,8 @@ python -m pip check                  # baseline: sem quebras
 ```bash
 git status --porcelain        # vazio
 git branch --show-current     # chore/dev-environment-release
-git log --oneline main..HEAD  # vazio no início
+git merge-base --is-ancestor main HEAD
+git log --oneline main..HEAD  # vazio se o prompt foi mergeado; só o commit do Prompt 06 na exceção
 ```
 
 Se qualquer gate falhar, pare e peça um checkout principal limpo.
@@ -136,7 +146,7 @@ Handoff mínimo: objetivo, contexto verificado, restrições, arquivos relevante
 | 10 | Build e validação de conteúdo de wheel/sdist | `python-engineer` | principal | `python-quality` | `dist/*.whl`, `dist/*.tar.gz` + listagem | `catalog_data/*.json`, entry points, README e LICENSE presentes |
 | 11 | Instalação limpa e smoke CLI/GUI | `python-engineer` | principal | `python-quality` | log de smoke em `dist/smoke-venv` | `zonepad --help`, `zonepad devices --help`, `zonepad-gui --smoke` com exit 0 |
 | 12 | Cobertura: medir baseline e decidir `fail_under` | `python-engineer` | principal | `python-quality` | `coverage.xml` + valor registrado no ADR | decisão registrada; sem threshold inventado |
-| 13 | Packaging distro por consistência (AUR/Debian) | `python-engineer` | principal | `python-quality` | `PKGBUILD`, `debian/control` ajustados | versão e dependências coerentes; nenhuma publicação |
+| 13 | Packaging distro por consistência (AUR/Debian scaffold) | `python-engineer` | principal | `python-quality` | `PKGBUILD`, `debian/control` ajustados | `pkgver` e dependências AUR coerentes; `Suggests` Debian atualizado e scaffold sem versão/build validado documentado; nenhuma publicação |
 | 14 | `CHANGELOG.md`, versão e `ai/prompts/README.md` | `python-engineer` (changelog) + `prompt-engineer` (`ai/`) | principal | `python-quality`, `prompt-design` | `CHANGELOG.md`, status 05/06 | versão única; `sync --check` limpo |
 | 15 | Revisão final | `python-engineer` + `prompt-engineer`; `controller-hardware` declara N/A | principal sintetiza | `/flow-review-calibration` | relatório com severidade e arquivo:linha | nenhum blocker; N/A de hardware registrado |
 | 16 | Encerramento | principal | usuário | — | entrega no **Formato de saída** | critérios marcados; riscos e handoff registrados |
@@ -162,16 +172,16 @@ Cada decisão tem dono. `python-engineer` decide estrutura, ferramentas e artefa
 | ID | Decisão | Recomendação inicial | Dono |
 | --- | --- | --- | --- |
 | D1 | Fonte das dependências | `pyproject.toml` como fonte única (`dependencies` + `optional-dependencies`); nenhum `requirements.txt`, `setup.py`, `setup.cfg`, `Pipfile` ou `poetry`; o wheel publica `Requires-Dist` derivado; README aponta para o `pyproject.toml` | `python-engineer` |
-| D2 | Reprodutibilidade | `constraints/dev.txt` com pins exatos (`==`) das versões do ambiente verde, aplicado na CI por `PIP_CONSTRAINT`; extras continuam com pisos `>=`; justificar e registrar como atualizar (por incremento, com suíte verde + `pip check`); rejeitar `uv.lock`/`pip-tools` por ora, salvo pedido explícito | `python-engineer` + usuário |
+| D2 | Reprodutibilidade | `constraints/dev.txt` com pins exatos (`==`) de dependências diretas e transitivas da resolução verde, aplicado na CI por `PIP_CONSTRAINT`; declarar também pins de build isolation, como `setuptools`, quando `pip freeze` do ambiente principal não os capturar; extras continuam com pisos `>=`; justificar e registrar como atualizar (por incremento, com suíte verde + `pip check`); rejeitar `uv.lock`/`pip-tools` por ora, salvo pedido explícito | `python-engineer` + usuário |
 | D3 | Extras | `dev = [pytest, pytest-cov, ruff, mypy, virtualenv, build]`; `gui = [PySide6>=6.7]` inalterado; sem `twine` (publicação fora do escopo); `.[dev,gui]` é o ambiente completo de desenvolvimento; nenhum extra novo além destes | `python-engineer` |
-| D4 | `virtualenv` vs `venv` | `virtualenv` é ferramenta de desenvolvimento (extra `dev`) e caminho documentado principal; `python -m venv` é fallback documentado; o `.venv` atual (criado com `venv`) continua válido; CI usa o interpretador do `setup-python`; runtime nunca depende de `virtualenv` | `python-engineer` |
+| D4 | `virtualenv` vs `venv` | Disponibilizar o comando independente com `pipx install virtualenv` e criar o ambiente principal com `virtualenv --python "$(asdf which python)" .venv`; `python -m venv .venv` é fallback documentado; o `.venv` atual (criado com `venv`) continua válido; CI usa o interpretador do `setup-python`; runtime nunca depende de `virtualenv` | `python-engineer` |
 | D5 | Ferramentas de desenvolvimento | `ruff`, `mypy`, `pytest`, `pytest-cov`, `build`, `pip check`; sem `pre-commit`, `tox`, `nox`, `pip-tools`, `twine` neste incremento | `python-engineer` |
 | D6 | Cobertura | `pytest-cov` com `--cov=zonepad --cov-report=term-missing --cov-report=xml`; medir baseline antes de definir `fail_under` (valor registrado no ADR); publicar `coverage.xml` como artefato da CI; sem badge externo nem serviço de terceiros | `python-engineer` |
-| D7 | CI de GUI | Instalar `.[dev,gui]` no job de testes; executar `tests/test_gui.py` sem skip; falhar explicitamente se `import PySide6` falhar ou se houver skip de GUI; `QT_QPA_PLATFORM=offscreen` já definido no teste (`tests/test_gui.py:7`) e replicado no job | `python-engineer` |
-| D8 | Build | `python -m build` gera sdist e wheel em `dist/`; validar conteúdo por listagem (`python -m zipfile -l`, `tar -tf`); sem assinatura, sem `setuptools_scm`, sem wheel por plataforma (`py3-none-any`) | `python-engineer` |
+| D7 | CI de GUI | Instalar `.[dev,gui]`; executar `tests/test_gui.py` com JUnit XML dedicado e verificar com `xml.etree.ElementTree` que nenhum caso foi pulado; falhar explicitamente se `import PySide6` falhar; `QT_QPA_PLATFORM=offscreen` já definido no teste (`tests/test_gui.py:7`) e replicado no job | `python-engineer` |
+| D8 | Build | `python -m build` gera sdist e wheel em `dist/`; validar conteúdo por listagem (`python -m zipfile -l`, `tar -tf`) e metadados; cada `License-File` do wheel deve existir em `.dist-info/licenses/`, e o sdist inclui `constraints/dev.txt` (usar `MANIFEST.in` se necessário); sem assinatura, sem `setuptools_scm`, sem wheel por plataforma (`py3-none-any`) | `python-engineer` |
 | D9 | Instalação limpa | `python -m venv dist/smoke-venv` (já ignorado em `.gitignore:6`); instalar o wheel e depois o wheel com extra `gui`; smoke `zonepad --help`, `zonepad devices --help`, `QT_QPA_PLATFORM=offscreen zonepad-gui --smoke`; `pip check` no venv limpo | `python-engineer` |
-| D10 | Packaging distro | Apenas consistência: `PKGBUILD` com `pkgver` igual ao `pyproject.toml` e `optdepends=('python-pyside6')`; `debian/control` com `Suggests: python3-pyside6.qtwidgets` e build com `pybuild`; publicação em AUR/Debian fica fora | `python-engineer` |
-| D11 | Versão e changelog | Manter `0.1.0` (não publicado) como versão única em `pyproject.toml:7`; criar `CHANGELOG.md` em PT-BR com `[Não publicado]` e `[0.1.0]` cobrindo os incrementos 00–05; PKGBUILD e Debian seguem o mesmo número | `python-engineer` |
+| D10 | Packaging distro | AUR: manter `PKGBUILD` com `pkgver` igual ao `pyproject.toml` e `optdepends=('pyside6')`. Debian: preservar o scaffold, atualizar `Suggests: python3-pyside6.qtwidgets` em `debian/control` e registrar em `README.source` que não há versão Debian nem build validado; adiar conversão para `pybuild` porque ainda não há distro-alvo validada com Python 3.15. Publicação em AUR/Debian fica fora | `python-engineer` |
+| D11 | Versão e changelog | Manter `0.1.0` (não publicado) como versão única em `pyproject.toml:7`; criar `CHANGELOG.md` em PT-BR com `[Não publicado]` e `[0.1.0]` cobrindo os incrementos 00–05; PKGBUILD usa o mesmo número; o scaffold Debian não declara versão enquanto `debian/changelog` não existir | `python-engineer` |
 | D12 | Limites | Sem publicação em PyPI/AUR, sem Windows/macOS, sem mudar domínio/métricas/schema/mapping/GUI, sem Docker, sem assinatura de pacote, sem renomear entry points ou pacote | principal |
 
 ## Escopo
@@ -196,7 +206,7 @@ Inventário esperado após a auditoria (confirme com `grep`/AST antes de conclui
 
 ### 2. Reprodutibilidade
 
-- Implementar D2: `constraints/dev.txt` com pins exatos do ambiente verde, incluindo PySide6.
+- Implementar D2: `constraints/dev.txt` com pins exatos da resolução verde, incluindo dependências diretas, transitivas, PySide6 e ferramentas de build isolation como `setuptools`.
 - Documentar como o arquivo é gerado e atualizado (comando, critério de aceite, quem aprova) — pode ser um parágrafo na spec, sem script novo obrigatório.
 - CI aplica `PIP_CONSTRAINT=constraints/dev.txt` no job de testes; se o pin impedir a instalação, a CI falha de forma legível.
 - Não criar segundo manifesto de dependências: o constraints fixa versões, não lista extras nem substitui o `pyproject.toml`.
@@ -207,7 +217,7 @@ Inventário esperado após a auditoria (confirme com `grep`/AST antes de conclui
 python -m pip install -e '.[dev,gui]'      # em .venv, sem PIP_CONSTRAINT
 python -m pytest -q -o addopts=""          # 704 testes verdes
 python -m pip check
-python -m pip freeze > constraints/dev.txt # revisar: só pacotes do projeto, sem -e
+python -m pip freeze > constraints/dev.txt # revisar dependências diretas/transitivas; declarar pins de build isolation ausentes do freeze; remover entrada editável do projeto e pacotes alheios ao ambiente
 git diff constraints/dev.txt               # registrar o que mudou e por quê
 ```
 
@@ -217,7 +227,7 @@ Reescrever a seção **Desenvolvimento** do `README.md:13-33` com os passos abai
 
 1. Pré-requisitos: Linux, `asdf`, `git`, compilador apenas se o Python exigir build local.
 2. `asdf`/`.tool-versions`: `asdf plugin add python`, `asdf install python 3.15.0`, `asdf set python 3.15.0`, `python --version`.
-3. Criar `.venv`: `python -m virtualenv --python "$(asdf which python)" .venv` e o fallback `python -m venv .venv`; explicar quando usar cada um (D4).
+3. Instalar o comando `virtualenv` com `pipx install virtualenv` e criar `.venv` com `virtualenv --python "$(asdf which python)" .venv`; manter `python -m venv .venv` como fallback quando `pipx`/`virtualenv` não estiver disponível, explicando quando usar cada um (D4).
 4. Ativar e instalar: `source .venv/bin/activate`, `python -m pip install -e '.[dev]'` (CLI + testes) e `python -m pip install -e '.[dev,gui]'` (GUI); explicar o que cada extra traz.
 5. Verificar: `python -m pytest -q`, `python -m ruff check .`, `python -m mypy src/zonepad`, `python -m pip check`.
 6. Build: `python -m build` → `dist/zonepad-0.1.0-py3-none-any.whl` e `dist/zonepad-0.1.0.tar.gz`.
@@ -233,7 +243,7 @@ Reescrever a seção **Desenvolvimento** do `README.md:13-33` com os passos abai
 
 - Manter o arquivo `.github/workflows/ai-assets.yml` e o job `check` (ruff, mypy, sync `--check`), sem renomear o workflow — renomear altera checks obrigatórios e exige ação do usuário.
 - Novo job `test`: instalar `.[dev,gui]` com `PIP_CONSTRAINT`, definir `QT_QPA_PLATFORM=offscreen`, rodar `pytest` com cobertura, rodar `pip check`, publicar `coverage.xml`.
-- Falhar se a GUI for pulada: além de instalar PySide6, adicione verificação explícita (`python -c "import PySide6"` e execução dedicada de `tests/test_gui.py`), para que um `importorskip` futuro não esconda a regressão.
+- Falhar se a GUI for pulada: além de instalar PySide6, adicione verificação explícita (`python -c "import PySide6"`), execute `tests/test_gui.py` com JUnit XML dedicado e use `xml.etree.ElementTree` para falhar se qualquer caso estiver marcado como skipped.
 - Novo job `package`: `python -m build`, instalação do wheel em venv limpo, smokes de CLI e GUI, `pip check`, upload de `dist/*` como artefato.
 - Manter Python 3.15.0 e incluir `constraints/**`, `README.md` e `packaging/**` no gatilho `paths` do workflow.
 - Não adicionar serviços externos, badges ou codecov; cobertura fica como artefato.
@@ -241,16 +251,16 @@ Reescrever a seção **Desenvolvimento** do `README.md:13-33` com os passos abai
 ### 5. Build e empacotamento
 
 - `python -m build` sem `--no-isolation` no fluxo local; no `PKGBUILD`, manter `--no-isolation` (build do sistema).
-- Validar que o wheel contém: `zonepad/**` completo, `zonepad/infrastructure/catalog_data/families.json`, `METADATA` com `Requires-Python`, `Requires-Dist` do extra `gui`, `entry_points.txt` com `zonepad` e `zonepad-gui`, `README.md` e `LICENSE`.
-- Validar que o sdist contém `pyproject.toml`, `src/`, `tests/` quando aplicável ao pacote, `README.md`, `LICENSE` e `constraints/` (se versionado).
+- Validar o wheel por listagem e metadados: `zonepad/**` completo, `zonepad/infrastructure/catalog_data/families.json`, `METADATA` com `Requires-Python`, `Requires-Dist` do extra `gui` e a descrição longa originada de `README.md`; `entry_points.txt` com `zonepad` e `zonepad-gui`; cada caminho `License-File` deve existir em `.dist-info/licenses/`.
+- Validar que o sdist contém `pyproject.toml`, `src/`, `README.md`, `LICENSE` e `constraints/dev.txt`; incluir `tests/` quando aplicável ao pacote. Se o backend não incluir constraints, adicionar `MANIFEST.in` para declarar esse conteúdo.
 - Smoke do wheel **sem** o extra `gui`: CLI funciona e `zonepad-gui` retorna `2` com mensagem acionável quando PySide6 está ausente.
 - Não commitar `dist/`; `.gitignore` já cobre `dist/` (`:6`) e `build/` (`:7`). Se a execução local gerar `coverage.xml` na raiz, adicione a entrada ao `.gitignore` (`.coverage` em `:13` e `htmlcov/` em `:14` já existem; `coverage.xml` não).
 
 ### 6. Release e versão
 
 - `CHANGELOG.md` no formato Keep a Changelog em PT-BR, com `[Não publicado]` e `[0.1.0]` resumindo 00–05 por área (runtime, métricas, wizard, descoberta, GUI).
-- Versão única em `pyproject.toml:7`; `packaging/aur/PKGBUILD:2` e `packaging/debian/changelog` (criar apenas se decidir manter Debian executável; caso contrário, documentar a ausência) coerentes.
-- Revisar `PKGBUILD` (`depends`, `makedepends`, `optdepends`, `build`/`package`) e `debian/control` (`Build-Depends`, `Suggests`) apenas para consistência; nenhuma publicação.
+- Versão única em `pyproject.toml:7`; `packaging/aur/PKGBUILD:2` e `packaging/debian/changelog` (criar se o pacote Debian for mantido como executável) coerentes. Se o Debian continuar apenas como scaffold sem changelog, registrar que ele ainda não declara versão; `debian/control` descreve dependências e metadados do pacote, não sua versão.
+- Revisar `PKGBUILD` (`depends`, `makedepends`, `optdepends`, `build`/`package`) para consistência. No scaffold Debian, atualizar apenas `Suggests` em `debian/control` e manter em `README.source` o registro de que não há versão Debian nem build validado; adiar conversão para `pybuild` até haver distro-alvo validada com Python 3.15. Nenhuma publicação.
 - Registrar no README o comando de build e onde ficam os artefatos.
 
 ### 7. Documentação
@@ -290,23 +300,23 @@ Reescrever a seção **Desenvolvimento** do `README.md:13-33` com os passos abai
 - [ ] `python -m pip install -e '.[dev,gui]'` instala PySide6 e a suíte de GUI roda completa.
 - [ ] `python -m pip install -e '.[dev]'` (sem `gui`) mantém `import zonepad`, `zonepad --help` e `zonepad devices --help` funcionando; `zonepad-gui` retorna `2` com mensagem acionável.
 - [ ] O repositório continua sem `requirements.txt`, `setup.py`, `setup.cfg` e `Pipfile`; `dependencies` runtime permanece vazio.
-- [ ] A estratégia de reprodutibilidade de D2 está implementada e aplicada na CI, ou explicitamente documentada como flutuante com justificativa aprovada.
-- [ ] `constraints/dev.txt` (se adotado) fixa versões exatas e não lista extras.
+- [ ] `constraints/dev.txt` fixa versões exatas da resolução aprovada, incluindo dependências diretas/transitivas e pins de build isolation; a CI instala com `PIP_CONSTRAINT`.
 - [ ] `python -m pip check` retorna `No broken requirements found` no ambiente de dev e no venv limpo.
 - [ ] Nenhum módulo de `src/zonepad/` importa `pytest`, `build`, `ruff`, `mypy` ou `PySide6` fora de `interface/gui/`.
 - [ ] `README.md` tem seção **Desenvolvimento** com os 10 blocos do escopo 3, executáveis na ordem, com saída esperada.
 - [ ] README documenta: origem PyPI, ausência de `requirements.txt`, função de cada extra e política `virtualenv`/`venv`.
 - [ ] README traz troubleshooting para PySide6 ausente, display/offscreen, `/dev/input`, `/dev/uinput` e PyPI/offline.
-- [ ] A CI executa `tests/test_gui.py` sem skip e falha se PySide6 não importar.
+- [ ] A CI executa `tests/test_gui.py` em offscreen e verifica zero skips no JUnit XML dedicado; falha se PySide6 não importar.
 - [ ] A CI roda `pip check`, ruff, mypy, pytest e `sync_ai_assets.py --check`.
 - [ ] A CI constrói sdist e wheel, instala o wheel em venv limpo e executa os três smokes.
 - [ ] `python -m build` gera `dist/*.whl` e `dist/*.tar.gz` sem erro.
-- [ ] O wheel contém `zonepad/infrastructure/catalog_data/families.json`, `entry_points.txt` com `zonepad` e `zonepad-gui`, `README.md` e `LICENSE`.
+- [ ] O wheel contém `zonepad/infrastructure/catalog_data/families.json` e `entry_points.txt` com `zonepad` e `zonepad-gui`; `METADATA` inclui descrição longa originada do README e cada `License-File` declarado aponta para arquivo presente em `.dist-info/licenses/`.
+- [ ] O sdist contém `constraints/dev.txt`; se necessário, `MANIFEST.in` declara sua inclusão.
 - [ ] Em venv limpo: `zonepad --help` = 0, `zonepad devices --help` = 0, `QT_QPA_PLATFORM=offscreen zonepad-gui --smoke` = 0.
 - [ ] `docs/specs/dev-environment-v1.md` e ADR 0009 aceitos, com D1–D12 fechadas e justificadas.
-- [ ] `CHANGELOG.md` existe com `[Não publicado]` e `[0.1.0]`; versão coerente com `PKGBUILD`.
-- [ ] `packaging/aur/PKGBUILD` e `packaging/debian/control` coerentes com versão e dependências; nenhuma publicação executada.
-- [ ] `ai/prompts/README.md` marca 05 concluído (PR #14) e 06 como pronto/último do roadmap; `sync_ai_assets.py --check` limpo.
+- [ ] `CHANGELOG.md` existe com `[Não publicado]` e `[0.1.0]`; versão coerente com `PKGBUILD` e, se o pacote Debian for mantido como executável, com `packaging/debian/changelog`. Se Debian permanecer como scaffold sem changelog, essa ausência fica registrada.
+- [ ] `packaging/aur/PKGBUILD` coerente com versão e dependências; `packaging/debian/control` mantém `Suggests` atualizado e o scaffold sem versão/build validado fica documentado em `README.source`; nenhuma publicação executada.
+- [ ] `ai/prompts/README.md` marca 05 concluído (PR #14) e 06 em implementação/último do roadmap; `sync_ai_assets.py --check` limpo.
 - [ ] O relatório final declara `controller-hardware` como N/A com justificativa e lista o que não foi executado.
 
 ## Matriz de testes
@@ -315,13 +325,13 @@ Reescrever a seção **Desenvolvimento** do `README.md:13-33` com os passos abai
 | --- | --- | --- |
 | Extras de dev completos | venv novo + `pip install -e '.[dev]'` | `build`, `pytest_cov`, `ruff`, `mypy`, `virtualenv` importáveis; `python -m build` inicia |
 | Isolamento da GUI | venv novo + `pip install -e '.[dev]'` | `import PySide6` falha; `zonepad --help` = 0; `zonepad-gui` = 2 com instrução de instalação |
-| GUI na CI | `.[dev,gui]` + `QT_QPA_PLATFORM=offscreen` | `tests/test_gui.py` executado, 11 passed, 0 skipped |
-| Detecção de skip | venv sem o extra `gui`, executando o step de verificação do workflow | step falha citando o teste pulado, sem passar silenciosamente |
+| GUI na CI | `.[dev,gui]` + `QT_QPA_PLATFORM=offscreen` + relatório JUnit XML dedicado | `tests/test_gui.py` executado, 11 passed, 0 skipped; o XML dedicado é analisado com `xml.etree.ElementTree` |
+| Detecção de skip | step de verificação do relatório JUnit XML do workflow | step falha citando qualquer teste skipped |
 | `pip check` | ambiente de dev e venv limpo | código 0, `No broken requirements found` |
 | Constraints | `PIP_CONSTRAINT=constraints/dev.txt pip install -e '.[dev,gui]'` | versões fixadas instaladas; suíte verde; `pip freeze` compatível com o arquivo |
 | Deriva de constraints | pin inexistente/incompatível | instalação falha com mensagem legível; nenhum fallback silencioso |
-| Conteúdo do wheel | `python -m zipfile -l dist/*.whl` | `catalog_data/families.json`, `entry_points.txt`, `METADATA`, `LICENSE`, `README.md` |
-| Conteúdo do sdist | `tar -tf dist/*.tar.gz` | `pyproject.toml`, `src/zonepad/`, `catalog_data/families.json`, `README.md`, `LICENSE` |
+| Conteúdo do wheel | `python -m zipfile -l dist/*.whl` + leitura de `METADATA` | `catalog_data/families.json`, `entry_points.txt`; descrição longa de README em `METADATA`; cada caminho `License-File` existe em `.dist-info/licenses/` |
+| Conteúdo do sdist | `tar -tf dist/*.tar.gz` | `pyproject.toml`, `src/zonepad/`, `catalog_data/families.json`, `README.md`, `LICENSE`, `constraints/dev.txt` |
 | Wheel sem GUI | venv limpo + wheel | CLI ok; `zonepad-gui` = 2; sem traceback |
 | Wheel com GUI | venv limpo + `pip install "dist/zonepad-0.1.0-py3-none-any.whl[gui]"` | `zonepad-gui --smoke` offscreen = 0 |
 | Sdist instalável | venv limpo + `pip install dist/*.tar.gz` | instala e smokes passam |
@@ -329,7 +339,7 @@ Reescrever a seção **Desenvolvimento** do `README.md:13-33` com os passos abai
 | Package data declarado | `pyproject.toml` + árvore real | todo `*.json` de `catalog_data/` está coberto pelo padrão declarado |
 | Imports de runtime | AST de `src/zonepad/` exceto `interface/gui/` | nenhum import de `PySide6`, `pytest`, `build`, `ruff`, `mypy` |
 | README executável | comandos da seção **Desenvolvimento** | cada comando existe, na ordem, com saída esperada declarada |
-| Changelog e versão | `CHANGELOG.md`, `pyproject.toml`, `PKGBUILD` | mesma versão `0.1.0`; `[Não publicado]` presente |
+| Changelog e versão | `CHANGELOG.md`, `pyproject.toml`, `PKGBUILD`, `packaging/debian/changelog` quando aplicável | mesma versão `0.1.0`; `[Não publicado]` presente; Debian sem changelog é reportado como scaffold sem versão |
 | Regressão | suíte completa | 704 testes anteriores continuam verdes + novos |
 
 Adicione `tests/test_packaging.py` cobrindo metadados, package data e imports de runtime — determinístico, sem rede e **sem** rodar build. Um teste que execute `python -m build` é opcional: marque-o com `skip` por padrão (ou marker `slow`) e rode-o no job `package` da CI.
@@ -362,7 +372,7 @@ QT_QPA_PLATFORM=offscreen dist/smoke-venv/bin/zonepad-gui --smoke; echo "exit=$?
 dist/smoke-venv/bin/python -m pip check
 ```
 
-Se a estratégia de D2 for adotada, repita a instalação com `PIP_CONSTRAINT=constraints/dev.txt` e registre o diff de versões.
+Repita a instalação com `PIP_CONSTRAINT=constraints/dev.txt` e registre o diff de versões.
 
 Se `ruff format --check` já falhar em `main` em arquivo fora do escopo, registre o débito e não o amplie. Se uma ferramenta não estiver disponível ou um comando depender de rede indisponível, declare exatamente o que não foi executado. Não execute `sudo`, não altere permissões e não publique nada.
 
@@ -380,7 +390,7 @@ Se `ruff format --check` já falhar em `main` em arquivo fora do escopo, registr
 | Instalação limpa depende de rede | job falha por indisponibilidade do PyPI | separar falha de rede de falha de pacote; documentar `--find-links`/cache local |
 | `fail_under` inventado | suíte vermelha sem ganho real | medir baseline e registrar o valor no ADR antes de ativar |
 | README divergir dos comandos reais | onboarding quebrado | revisão por `prompt-engineer` + execução literal dos comandos nas etapas 8 e 11 |
-| Packaging distro divergir da versão | pacote de distribuição inconsistente | D10 limitado a coerência; `pkgver` e `Suggests` conferidos na etapa 13 |
+| Packaging distro divergir da versão | pacote de distribuição inconsistente | D10 limitado à consistência do AUR e à manutenção do scaffold Debian; `pkgver`, `Suggests` e nota sobre ausência de distro-alvo Python 3.15 conferidos na etapa 13 |
 | Escopo crescer para release real | incremento não fecha | D12 e **Fora de escopo** explícitos; publicação exige novo incremento |
 
 ## Formato de saída

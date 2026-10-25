@@ -6,6 +6,7 @@ arch=('any')
 license=('MIT')
 depends=('python')
 makedepends=('python-build' 'python-installer')
+optdepends=('pyside6: PySide6 graphical interface')
 source=("zonepad-${pkgver}.tar.gz")
 sha256sums=('SKIP')
 
