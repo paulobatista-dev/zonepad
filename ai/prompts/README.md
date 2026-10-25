@@ -43,8 +43,11 @@ $flow-implement-feature
 
 ## Sequência planejada
 
+Execute o prompt 00 antes do 01, em branch própria a partir de `main`. Ele fixa a toolchain e não altera o runtime CLI.
+
 | Prompt | Incremento | Status |
 | --- | --- | --- |
+| `00-toolchain-python-315-asdf-virtualenv.md` | Python 3.15.0, asdf, virtualenv, pyproject e CI | Pré-requisito |
 | `01-runtime-cli-end-to-end.md` | Comando `zonepad run` com evdev → perfil → uinput | Pronto para executar |
 | `02-calibration-metrics.md` | Métricas e profile builder guiado | A criar |
 | `03-calibration-wizard.md` | Wizard CLI de calibração | A criar |

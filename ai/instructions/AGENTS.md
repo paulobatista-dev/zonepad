@@ -23,13 +23,13 @@ ZonaPad é um aplicativo Python para calibrar controles (gamepads) de forma guia
 
 ## Stack e convenções
 
-- Python 3.12+.
+- Python 3.15.x, fixado em `.tool-versions` (`python 3.15.0`); a CI usa `3.15.0`.
 - Tipagem estática em APIs públicas; use `from __future__ import annotations`.
 - Domínio puro, sem imports de UI, sistema operacional ou bibliotecas de dispositivo.
 - Backends de dispositivo atrás de `Protocol`/ABC.
 - Testes com `pytest`; use fakes, relógio injetado e replay de capturas. Sem hardware real na CI.
 - `ruff` para lint/formatação; `mypy` ou `pyright` para tipos.
-- `uv` para ambiente e dependências quando disponível.
+- `asdf` para a versão do Python; `virtualenv` para o ambiente; dependências de desenvolvimento no extra `dev` (`python -m pip install -e '.[dev]'`).
 - Sem `print` em código de produção; use logging estruturado.
 - Erros explícitos; não silencie exceções.
 - Conteúdo e respostas em PT-BR; identificadores, arquivos e APIs em inglês.
@@ -96,6 +96,7 @@ Invocação:
 - Código tipado, testado e com lint limpo.
 - Testes relevantes passando.
 - `python scripts/sync_ai_assets.py --check` limpo.
+- `.tool-versions`, `requires-python` e a CI declaram a mesma versão de Python.
 - Documentação ou ADR atualizada quando a decisão for relevante.
 - `README.md` e `LICENSE` coerentes com o estado do projeto.
 - Riscos e limitações registrados.

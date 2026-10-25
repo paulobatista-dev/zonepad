@@ -39,7 +39,8 @@ Não atue como autoridade final sobre protocolos de hardware ou semântica de ca
 
 ## Regras de código
 
-- Python 3.12+; `from __future__ import annotations` em módulos com hints.
+- Python 3.15.x (fixado em `.tool-versions`); `from __future__ import annotations` em módulos com hints.
+- Ambiente: asdf + virtualenv; instale com `python -m pip install -e '.[dev]'`.
 - Tipagem em APIs públicas; evite `Any` sem justificativa.
 - `dataclasses(frozen=True)` para modelos de valor; `Protocol` para portas.
 - Não bloqueie a thread da UI: leitura em worker/loop com backpressure e coalescência.
