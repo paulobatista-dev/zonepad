@@ -8,6 +8,7 @@ from types import MappingProxyType
 from typing import Any
 
 from zonepad.domain.errors import InvalidMappingError
+from zonepad.domain.mapping_draft import MappingDraft
 from zonepad.domain.normalization import AxisRange, TriggerRange
 
 _AXIS_NAMES = frozenset(("lx", "ly", "rx", "ry"))
@@ -51,13 +52,46 @@ def load_device_mapping(path: Path) -> DeviceMapping:
     """Load a strict schema-v1 mapping without inferring hardware ranges."""
     try:
         with path.expanduser().open(encoding="utf-8") as stream:
-            raw = json.load(stream, object_pairs_hook=_strict_object)
+            text = stream.read()
     except FileNotFoundError as exc:
         raise InvalidMappingError(f"mapping not found: {path}") from exc
-    except json.JSONDecodeError as exc:
-        raise InvalidMappingError(f"invalid mapping JSON: {path}") from exc
     except (OSError, UnicodeError, IsADirectoryError) as exc:
         raise InvalidMappingError(f"mapping cannot be read: {path}") from exc
+    return _loads(text, str(path))
+
+
+def loads_device_mapping(text: str) -> DeviceMapping:
+    """Parse a strict schema-v1 mapping from JSON text (same rules as the file loader)."""
+    return _loads(text, "<text>")
+
+
+def dumps_device_mapping(draft: MappingDraft) -> str:
+    """Serialize a draft as deterministic schema-v1 JSON (button keys in decimal)."""
+    payload = {
+        "schema_version": 1,
+        "axes": {
+            name: {
+                "code": axis.code,
+                "minimum": axis.minimum,
+                "center": axis.center,
+                "maximum": axis.maximum,
+            }
+            for name, axis in draft.axes.items()
+        },
+        "triggers": {
+            name: {"code": trigger.code, "rest": trigger.rest, "maximum": trigger.maximum}
+            for name, trigger in draft.triggers.items()
+        },
+        "buttons": {str(code): name for code, name in draft.buttons.items()},
+    }
+    return json.dumps(payload, ensure_ascii=False, allow_nan=False, indent=2, sort_keys=True) + "\n"
+
+
+def _loads(text: str, source: str) -> DeviceMapping:
+    try:
+        raw = json.loads(text, object_pairs_hook=_strict_object)
+    except json.JSONDecodeError as exc:
+        raise InvalidMappingError(f"invalid mapping JSON: {source}") from exc
     return _parse_mapping(raw)
 
 
