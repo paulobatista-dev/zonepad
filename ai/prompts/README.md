@@ -49,7 +49,7 @@ Os prompts 00 e 01 estão concluídos e mergeados em `main`. A partir do 02, exe
 | --- | --- | --- |
 | `00-toolchain-python-315-asdf-virtualenv.md` | Python 3.15.0, asdf, virtualenv, pyproject e CI | Concluído — mergeado em `main` |
 | `01-runtime-cli-end-to-end.md` | Comando `zonepad run` com evdev → perfil → uinput | Concluído — mergeado em `main` |
-| `02-calibration-metrics.md` | Métricas, relatório e profile builder | Pronto para Claude Code |
+| `02-calibration-metrics.md` | Métricas, relatório e profile builder | Executado em `feat/calibration-metrics` (spec `docs/specs/metrics-v1.md`, ADR `docs/adr/0004-metricas-relatorio-separado-e-perfil-v1.md`); aguardando revisão e merge |
 | `03-calibration-wizard.md` | Wizard CLI de calibração | A criar |
 | `04-device-discovery-mapping.md` | Descoberta e mapeamento por família | A criar |
 | `05-gui-pyside6.md` | GUI funcional | A criar |

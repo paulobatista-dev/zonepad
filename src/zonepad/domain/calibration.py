@@ -42,7 +42,8 @@ def apply_radial_deadzone(
     return x / radius * scale, y / radius * scale
 
 
-def _calibrate_axis(value: float, center: float, minimum: float, maximum: float) -> float:
+def calibrate_axis(value: float, center: float, minimum: float, maximum: float) -> float:
+    """Center and scale one axis by its measured half-ranges, clamped to [-1, 1]."""
     shifted = value - center
     denominator = maximum - center if shifted >= 0 else center - minimum
     if denominator <= 0:
@@ -51,10 +52,10 @@ def _calibrate_axis(value: float, center: float, minimum: float, maximum: float)
 
 
 def _apply_stick(values: tuple[float, float], calibration: StickCalibration) -> tuple[float, float]:
-    calibrated_x = _calibrate_axis(
+    calibrated_x = calibrate_axis(
         values[0], calibration.center[0], calibration.range_min[0], calibration.range_max[0]
     )
-    calibrated_y = _calibrate_axis(
+    calibrated_y = calibrate_axis(
         values[1], calibration.center[1], calibration.range_min[1], calibration.range_max[1]
     )
     x, y = apply_radial_deadzone(

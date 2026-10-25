@@ -23,3 +23,23 @@ class DeviceDisconnectedError(ZonaPadError):
 
 class UnsupportedPlatformError(ZonaPadError):
     """Raised when an infrastructure adapter is not available on this OS."""
+
+
+class MeasurementInputError(ZonaPadError, ValueError):
+    """Raised when a capture, manifest or thresholds file cannot be measured.
+
+    ``code`` is a stable identifier shown as ``[CODE]`` at the start of the message.
+    """
+
+    def __init__(self, code: str, detail: str) -> None:
+        super().__init__(f"[{code}] {detail}")
+        self.code = code
+        self.detail = detail
+
+
+class ProfileDerivationError(ZonaPadError, ValueError):
+    """Raised when measured metrics cannot yield a valid schema-v1 profile."""
+
+
+class InvalidReportError(ZonaPadError, ValueError):
+    """Raised when a metrics report violates its strict schema."""
