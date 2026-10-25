@@ -61,6 +61,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Instalar runtime Qt para execução offscreen
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes libegl1
       - uses: actions/setup-python@v5
         with:
           python-version: "3.15.0"
@@ -95,6 +99,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Instalar runtime Qt para smoke offscreen
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes libegl1
       - uses: actions/setup-python@v5
         with:
           python-version: "3.15.0"

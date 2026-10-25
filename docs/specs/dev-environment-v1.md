@@ -68,8 +68,8 @@ Contribuidor em Linux com Python 3.15.0 configurado por asdf. A pessoa deve cons
 1. `pytest-cov` habilita cobertura de `zonepad`, relatório terminal com linhas faltantes e `coverage.xml`.
 2. A cobertura de linhas baseline é medida e registrada no ADR. Neste incremento não se define `fail_under`: o relatório é publicado como evidência e um limite futuro requer alvo justificado e nova decisão. A configuração padrão não mede branches.
 3. Job `check` preserva Ruff, mypy e `sync_ai_assets.py --check`.
-4. Job `test` instala `.[dev,gui]` com constraints, configura `QT_QPA_PLATFORM=offscreen`, verifica `import PySide6`, executa a suíte e `tests/test_gui.py` explicitamente com JUnit XML; uma verificação com `xml.etree.ElementTree` falha se houver caso skipped no resultado dedicado; executa `pip check` e publica `coverage.xml`.
-5. Job `package` constrói sdist/wheel, inspeciona conteúdo, instala o wheel em venv descartável sem GUI e roda CLI/diagnóstico da GUI ausente; em seguida instala o extra GUI, roda `zonepad-gui --smoke` offscreen, executa `pip check` e publica `dist/*` como artefato.
+4. Job `test` instala o runtime Qt `libegl1`, instala `.[dev,gui]` com constraints, configura `QT_QPA_PLATFORM=offscreen`, verifica `import PySide6`, executa a suíte e `tests/test_gui.py` explicitamente com JUnit XML; uma verificação com `xml.etree.ElementTree` falha se houver caso skipped no resultado dedicado; executa `pip check` e publica `coverage.xml`.
+5. Job `package` instala `libegl1`, constrói sdist/wheel, inspeciona conteúdo, instala o wheel em venv descartável sem GUI e roda CLI/diagnóstico da GUI ausente; em seguida instala o extra GUI, roda `zonepad-gui --smoke` offscreen, executa `pip check` e publica `dist/*` como artefato.
 6. Workflow mantém Python 3.15.0, nome `ai-assets` e inclui README, constraints, packaging e pyproject nos gatilhos de paths.
 
 ### Build e instalação limpa
