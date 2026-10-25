@@ -9,8 +9,8 @@ Os prompts não são espelhados pelo gerador `scripts/sync_ai_assets.py`. Eles v
 ### Claude Code
 
 ```text
-Use o prompt em @ai/prompts/01-runtime-cli-end-to-end.md.
-Leia o arquivo inteiro, execute o escopo e valide com os comandos pedidos.
+Use o prompt em @ai/prompts/02-calibration-metrics.md.
+Leia o arquivo inteiro, execute as etapas na ordem e valide com os comandos pedidos.
 ```
 
 Ou use o fluxo:
@@ -22,8 +22,8 @@ Ou use o fluxo:
 ### Codex
 
 ```text
-Siga o prompt em ai/prompts/01-runtime-cli-end-to-end.md.
-Leia o arquivo inteiro, execute o escopo e valide com os comandos pedidos.
+Siga o prompt em ai/prompts/02-calibration-metrics.md.
+Leia o arquivo inteiro, execute as etapas na ordem e valide com os comandos pedidos.
 ```
 
 Ou use a skill de fluxo:
@@ -43,17 +43,19 @@ $flow-implement-feature
 
 ## Sequência planejada
 
-Execute o prompt 00 antes do 01, em branch própria a partir de `main`. Ele fixa a toolchain e não altera o runtime CLI.
+Os prompts 00 e 01 estão concluídos e mergeados em `main`. A partir do 02, execute cada incremento em branch própria criada a partir de `main`, com worktree limpo e toolchain 3.15.0.
 
 | Prompt | Incremento | Status |
 | --- | --- | --- |
-| `00-toolchain-python-315-asdf-virtualenv.md` | Python 3.15.0, asdf, virtualenv, pyproject e CI | Pré-requisito |
-| `01-runtime-cli-end-to-end.md` | Comando `zonepad run` com evdev → perfil → uinput | Pronto para executar |
-| `02-calibration-metrics.md` | Métricas e profile builder guiado | A criar |
+| `00-toolchain-python-315-asdf-virtualenv.md` | Python 3.15.0, asdf, virtualenv, pyproject e CI | Concluído — mergeado em `main` |
+| `01-runtime-cli-end-to-end.md` | Comando `zonepad run` com evdev → perfil → uinput | Concluído — mergeado em `main` |
+| `02-calibration-metrics.md` | Métricas, relatório e profile builder | Pronto para Claude Code |
 | `03-calibration-wizard.md` | Wizard CLI de calibração | A criar |
 | `04-device-discovery-mapping.md` | Descoberta e mapeamento por família | A criar |
 | `05-gui-pyside6.md` | GUI funcional | A criar |
 | `06-quality-release.md` | Ruff/mypy/cobertura/packaging | A criar |
+
+O prompt 02 é pré-requisito do 03: ele entrega o motor de medição e a geração de perfil; o wizard apenas orquestra esse motor.
 
 ## Regra de ouro
 
