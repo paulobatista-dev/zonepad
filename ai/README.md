@@ -28,7 +28,7 @@ ai/
 | --- | --- | --- |
 | `name` | sim | ID em kebab-case; deve ser igual ao diretório. |
 | `description` | sim | Quando usar o agente; até 1024 caracteres. |
-| `mode` | não | `subagent` (padrão), `primary` ou `all`. |
+| `modes` | sim | Lista não vazia com `direct`, `subagent` ou ambos. |
 | `tools` | sim | Lista de ferramentas canônicas. |
 | `skills` | não | Skills que o agente deve usar. |
 | `color` | não | `red`, `blue`, `green`, `yellow`, `purple`, `orange`, `pink` ou `cyan`. |
@@ -56,6 +56,28 @@ Mapeamento:
 
 O Codex não tem restrição de ferramenta por agente; o gerador só desabilita `features.shell_tool` quando `shell` não está na lista.
 
+### Modos de uso
+
+Cada agente declara em `modes` onde pode ser usado:
+
+| Modo | OpenCode | Claude Code | Codex |
+| --- | --- | --- | --- |
+| `direct` | agente principal (`Tab` ou `default_agent`) | `claude --agent <id>` ou setting `agent` | `codex --profile <id>` |
+| `subagent` | `@<id>` ou delegação automática | tool Agent ou “use o agente `<id>`” | `.codex/agents/<id>.toml` |
+| ambos | `mode: all` | o mesmo arquivo atende aos dois contextos | agente + perfil |
+
+O OpenCode recebe `mode: primary`, `subagent` ou `all` conforme os modos declarados. O Claude Code usa o mesmo `.claude/agents/<id>.md` nos dois contextos; ele não tem campo para restringir o modo. No Codex, o modo direto é um perfil em `.codex/profiles/<id>.config.toml`, porque o Codex lê perfis apenas de `$CODEX_HOME`.
+
+Para ativar o perfil do Codex no Linux ou macOS:
+
+```bash
+mkdir -p "$HOME/.codex"
+ln -sfn "$PWD/.codex/profiles/<id>.config.toml" "$HOME/.codex/<id>.config.toml"
+codex --profile <id>
+```
+
+Reversão: `rm "$HOME/.codex/<id>.config.toml"`. No Windows, copie o arquivo para `%USERPROFILE%\.codex\<id>.config.toml` e repita a cópia depois de cada sync. O perfil adiciona `developer_instructions`, modelo e esforço; sandbox, aprovações e autenticação continuam vindo da sessão.
+
 ### `prompt.md`
 
 Corpo do system prompt, em PT-BR, com:
@@ -63,11 +85,12 @@ Corpo do system prompt, em PT-BR, com:
 1. Papel
 2. Missão
 3. Escopo
-4. Princípios/processo
-5. Regras
-6. Contrato de saída
-7. Handoffs
-8. Limites
+4. Modos de execução
+5. Princípios/processo
+6. Regras
+7. Contrato de saída
+8. Handoffs
+9. Limites
 
 Não coloque frontmatter em `prompt.md`.
 
@@ -151,8 +174,8 @@ python scripts/sync_ai_assets.py --check   # compara e falha se houver drift
 
 O gerador:
 
-- valida nomes, descrições, ferramentas, skills e fluxos;
-- converte agentes para Markdown/YAML e TOML;
+- valida nomes, descrições, modos, ferramentas, skills e fluxos;
+- converte agentes para Markdown/YAML e TOML e gera perfis Codex para o modo direto;
 - copia skills e gera fluxos;
 - grava um manifesto `.generated.json` por destino;
 - remove arquivos obsoletos listados no manifesto;

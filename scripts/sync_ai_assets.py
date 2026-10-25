@@ -10,6 +10,9 @@ A fonte canônica é a única editável:
 
 Os diretórios .opencode/, .claude/, .agents/ e .codex/ e os arquivos
 AGENTS.md/CLAUDE.md são gerados. Não os edite à mão.
+
+Agentes com mode direto também geram .codex/profiles/<id>.config.toml, que
+ativa o perfil correspondente com `codex --profile <id>`.
 """
 
 from __future__ import annotations
@@ -97,7 +100,12 @@ COLOR_HEX = {
 }
 
 REASONING_EFFORTS = {"low", "medium", "high", "xhigh", "max", "ultra"}
-MODES = {"subagent", "primary", "all"}
+AGENT_MODES = ("direct", "subagent")
+OPENCODE_MODES = {
+    ("direct",): "primary",
+    ("subagent",): "subagent",
+    ("direct", "subagent"): "all",
+}
 
 
 class SyncError(Exception):
@@ -108,7 +116,7 @@ class SyncError(Exception):
 class Agent:
     name: str
     description: str
-    mode: str
+    modes: tuple[str, ...]
     tools: tuple[str, ...]
     skills: tuple[str, ...]
     color: str | None
@@ -195,6 +203,25 @@ def validate_name(name: str, directory: Path, kind: str) -> None:
         )
 
 
+def parse_modes(raw: object, meta_path: Path) -> tuple[str, ...]:
+    if not isinstance(raw, list) or not raw:
+        raise SyncError(f"{meta_path}: 'modes' deve ser uma lista não vazia")
+
+    values: list[str] = []
+    for item in raw:
+        if not isinstance(item, str):
+            raise SyncError(f"{meta_path}: 'modes' deve conter apenas strings")
+        values.append(item)
+
+    unknown = set(values) - set(AGENT_MODES)
+    if unknown:
+        raise SyncError(f"{meta_path}: modos desconhecidos: {sorted(unknown)}")
+    if len(set(values)) != len(values):
+        raise SyncError(f"{meta_path}: 'modes' contém duplicatas")
+
+    return tuple(mode for mode in AGENT_MODES if mode in set(values))
+
+
 def validate_skills(root: Path) -> list[Skill]:
     skills_dir = root / "ai" / "skills"
     if not skills_dir.is_dir():
@@ -257,9 +284,7 @@ def load_agents(root: Path) -> list[Agent]:
         if len(description) > 1024:
             raise SyncError(f"{meta_path}: 'description' excede 1024 caracteres")
 
-        mode = str(meta.get("mode", "subagent"))
-        if mode not in MODES:
-            raise SyncError(f"{meta_path}: mode inválido '{mode}'")
+        modes = parse_modes(meta.get("modes"), meta_path)
 
         raw_tools = meta.get("tools", [])
         if not isinstance(raw_tools, list) or not raw_tools:
@@ -310,7 +335,7 @@ def load_agents(root: Path) -> list[Agent]:
             Agent(
                 name=name,
                 description=description,
-                mode=mode,
+                modes=modes,
                 tools=tools,
                 skills=skills,
                 color=str(color) if color is not None else None,
@@ -406,6 +431,14 @@ def model_for(agent: Agent, target: str) -> str | None:
     return value
 
 
+def opencode_mode(modes: tuple[str, ...]) -> str:
+    canonical = tuple(mode for mode in AGENT_MODES if mode in set(modes))
+    try:
+        return OPENCODE_MODES[canonical]
+    except KeyError as exc:
+        raise SyncError(f"modos inválidos para OpenCode: {list(modes)}") from exc
+
+
 def opencode_permissions(tools: tuple[str, ...]) -> list[tuple[str, str]]:
     allowed = {OPENCODE_ACTIONS[tool] for tool in tools if tool in OPENCODE_ACTIONS}
     result: list[tuple[str, str]] = []
@@ -422,7 +455,7 @@ def render_opencode_agent(agent: Agent) -> bytes:
     lines = [
         "---",
         f"description: {yaml_quote(agent.description)}",
-        f"mode: {agent.mode}",
+        f"mode: {opencode_mode(agent.modes)}",
     ]
     if agent.color:
         lines.append(f"color: {yaml_quote(COLOR_HEX[agent.color])}")
@@ -497,6 +530,33 @@ def render_codex_agent(agent: Agent) -> bytes:
         "# Restrições de ferramenta por agente não são aplicadas.",
         f"name = {json.dumps(agent.name)}",
         f"description = {json.dumps(agent.description, ensure_ascii=False)}",
+    ]
+    model = model_for(agent, "codex")
+    if model:
+        lines.append(f"model = {json.dumps(model, ensure_ascii=False)}")
+    if agent.reasoning_effort:
+        lines.append(f"model_reasoning_effort = {json.dumps(agent.reasoning_effort)}")
+    if "shell" not in agent.tools:
+        lines.append("features.shell_tool = false")
+    lines.extend(
+        [
+            'developer_instructions = """',
+            toml_escape_multiline(agent.prompt),
+            '"""',
+            "",
+        ]
+    )
+    return "\n".join(lines).encode("utf-8")
+
+
+def render_codex_profile(agent: Agent) -> bytes:
+    lines = [
+        f"# Gerado por scripts/sync_ai_assets.py a partir de ai/agents/{agent.name}/.",
+        "# Não edite este arquivo.",
+        f"# Modo direto: instale como $CODEX_HOME/{agent.name}.config.toml e rode",
+        f"# `codex --profile {agent.name}`.",
+        "# O perfil adiciona developer_instructions à sessão; sandbox e aprovações",
+        "# continuam vindo da sessão.",
     ]
     model = model_for(agent, "codex")
     if model:
@@ -612,7 +672,14 @@ def collect_plan(root: Path = ROOT) -> Plan:
     for agent in agents:
         plan.add(".opencode", f"agents/{agent.name}.md", render_opencode_agent(agent))
         plan.add(".claude", f"agents/{agent.name}.md", render_claude_agent(agent))
-        plan.add(".codex", f"agents/{agent.name}.toml", render_codex_agent(agent))
+        if "subagent" in agent.modes:
+            plan.add(".codex", f"agents/{agent.name}.toml", render_codex_agent(agent))
+        if "direct" in agent.modes:
+            plan.add(
+                ".codex",
+                f"profiles/{agent.name}.config.toml",
+                render_codex_profile(agent),
+            )
 
     for skill in skills:
         for target in (".opencode", ".claude", ".agents"):

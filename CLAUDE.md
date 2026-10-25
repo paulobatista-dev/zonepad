@@ -89,6 +89,7 @@ Regras:
 ## Roteamento e handoff
 
 - Toda tarefa começa pelo agente principal.
+- Cada especialista opera em modo direto ou subagente: no direto conduz a sessão e delega; no subagente devolve resultado, evidências e riscos ao pai.
 - Delegue ao especialista quando a tarefa exigir conhecimento profundo do domínio.
 - Um handoff deve incluir: objetivo, contexto, restrições, arquivos relevantes e critério de aceite.
 - O especialista não edita arquivos fora do seu domínio sem pedido explícito.
